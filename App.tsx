@@ -1,20 +1,82 @@
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  SignInScreen,
+  SignUpScreen,
+  ProfileSetupScreen,
+  StandingsScreen,
+  CreateChallengeScreen,
+  MyChallengesScreen,
+  MyMatchesScreen,
+  MatchDetailScreen,
+} from './src/screens';
+import { useAuth } from './src/hooks/useAuth';
+import type { RootStackParamList } from './src/types/navigation';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function Navigation() {
+  const { session, loading, needsProfileSetup } = useAuth();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setReady(true);
+    }
+  }, [loading]);
+
+  if (!ready) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#e94560" />
+      </View>
+    );
+  }
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#1a1a2e' },
+      }}
+    >
+      {!session ? (
+        <>
+          <Stack.Screen name="SignIn" component={SignInScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+        </>
+      ) : needsProfileSetup() ? (
+        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+      ) : (
+        <>
+          <Stack.Screen name="Standings" component={StandingsScreen} />
+          <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
+          <Stack.Screen name="MyChallenges" component={MyChallengesScreen} />
+          <Stack.Screen name="MyMatches" component={MyMatchesScreen} />
+          <Stack.Screen name="MatchDetail" component={MatchDetailScreen} />
+        </>
+      )}
+    </Stack.Navigator>
+  );
+}
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <StatusBar style="light" />
+      <Navigation />
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loading: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
   },
 });
