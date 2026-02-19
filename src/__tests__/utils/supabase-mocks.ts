@@ -1,62 +1,61 @@
 // Test utilities and mocks for Supabase
-import { vi } from 'vitest';
 
 // Mock Supabase client
 export const mockSupabaseClient = {
   auth: {
-    getSession: vi.fn(),
-    onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
-    signInWithPassword: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
+    getSession: jest.fn(),
+    onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+    signInWithPassword: jest.fn(),
+    signUp: jest.fn(),
+    signOut: jest.fn(),
   },
-  from: vi.fn(() => mockQueryBuilder),
-  rpc: vi.fn(),
-  channel: vi.fn(() => mockChannel),
+  from: jest.fn(() => mockQueryBuilder),
+  rpc: jest.fn(),
+  channel: jest.fn(() => mockChannel),
 };
 
 // Mock query builder for chained methods
 export const mockQueryBuilder = {
-  select: vi.fn(() => mockQueryBuilder),
-  insert: vi.fn(() => mockQueryBuilder),
-  update: vi.fn(() => mockQueryBuilder),
-  delete: vi.fn(() => mockQueryBuilder),
-  eq: vi.fn(() => mockQueryBuilder),
-  or: vi.fn(() => mockQueryBuilder),
-  order: vi.fn(() => mockQueryBuilder),
-  limit: vi.fn(() => mockQueryBuilder),
-  single: vi.fn(() => mockQueryBuilder),
-  lt: vi.fn(() => mockQueryBuilder),
-  then: vi.fn(),
+  select: jest.fn(() => mockQueryBuilder),
+  insert: jest.fn(() => mockQueryBuilder),
+  update: jest.fn(() => mockQueryBuilder),
+  delete: jest.fn(() => mockQueryBuilder),
+  eq: jest.fn(() => mockQueryBuilder),
+  or: jest.fn(() => mockQueryBuilder),
+  order: jest.fn(() => mockQueryBuilder),
+  limit: jest.fn(() => mockQueryBuilder),
+  single: jest.fn(() => mockQueryBuilder),
+  lt: jest.fn(() => mockQueryBuilder),
+  then: jest.fn(),
 };
 
 // Mock realtime channel
 export const mockChannel = {
-  on: vi.fn(() => mockChannel),
-  subscribe: vi.fn(() => mockChannel),
-  unsubscribe: vi.fn(),
+  on: jest.fn(() => mockChannel),
+  subscribe: jest.fn(() => mockChannel),
+  unsubscribe: jest.fn(),
 };
 
 // Helper to reset all mocks
 export function resetSupabaseMocks() {
-  vi.clearAllMocks();
+  jest.clearAllMocks();
   
   // Reset default implementations
   mockSupabaseClient.auth.getSession.mockResolvedValue({ data: { session: null } });
   mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({ 
-    data: { subscription: { unsubscribe: vi.fn() } } 
+    data: { subscription: { unsubscribe: jest.fn() } } 
   });
   
   // Reset query builder methods to return self for chaining
   Object.keys(mockQueryBuilder).forEach(key => {
     if (key !== 'then') {
-      mockQueryBuilder[key as keyof typeof mockQueryBuilder].mockReturnValue(mockQueryBuilder);
+      (mockQueryBuilder as any)[key].mockReturnValue(mockQueryBuilder);
     }
   });
 }
 
 // Factory functions for test data
-export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
+export function createMockProfile(overrides: Partial<any> = {}): any {
   return {
     id: 'user-123',
     display_name: 'Test Player',
@@ -67,7 +66,7 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
   };
 }
 
-export function createMockPlayer(overrides: Partial<Player> = {}): Player {
+export function createMockPlayer(overrides: Partial<any> = {}): any {
   return {
     id: 'player-123',
     profile_id: 'user-123',
@@ -77,7 +76,7 @@ export function createMockPlayer(overrides: Partial<Player> = {}): Player {
   };
 }
 
-export function createMockRank(overrides: Partial<Rank> = {}): Rank {
+export function createMockRank(overrides: Partial<any> = {}): any {
   return {
     id: 'rank-123',
     player_id: 'player-123',
@@ -89,7 +88,7 @@ export function createMockRank(overrides: Partial<Rank> = {}): Rank {
   };
 }
 
-export function createMockChallenge(overrides: Partial<Challenge> = {}): Challenge {
+export function createMockChallenge(overrides: Partial<any> = {}): any {
   return {
     id: 'challenge-123',
     challenger_player_id: 'player-123',
@@ -106,7 +105,7 @@ export function createMockChallenge(overrides: Partial<Challenge> = {}): Challen
   };
 }
 
-export function createMockMatch(overrides: Partial<Match> = {}): Match {
+export function createMockMatch(overrides: Partial<any> = {}): any {
   return {
     id: 'match-123',
     challenge_id: 'challenge-123',
@@ -131,7 +130,7 @@ export function createMockMatch(overrides: Partial<Match> = {}): Match {
   };
 }
 
-export function createMockTransaction(overrides: Partial<Transaction> = {}): Transaction {
+export function createMockTransaction(overrides: Partial<any> = {}): any {
   return {
     id: 'tx-123',
     player_id: 'player-123',
@@ -147,7 +146,7 @@ export function createMockTransaction(overrides: Partial<Transaction> = {}): Tra
   };
 }
 
-export function createMockActivityItem(overrides: Partial<ActivityItem> = {}): ActivityItem {
+export function createMockActivityItem(overrides: Partial<any> = {}): any {
   return {
     id: 'activity-123',
     type: 'challenge_sent',
@@ -161,7 +160,7 @@ export function createMockActivityItem(overrides: Partial<ActivityItem> = {}): A
   };
 }
 
-export function createMockVenue(overrides: Partial<Venue> = {}): Venue {
+export function createMockVenue(overrides: Partial<any> = {}): any {
   return {
     id: 'venue-123',
     name: 'Valley Hub',
@@ -169,8 +168,3 @@ export function createMockVenue(overrides: Partial<Venue> = {}): Venue {
     ...overrides,
   };
 }
-
-// Type imports (these will be resolved by Jest)
-import type { Profile, Player, Rank, Challenge, Match } from '../types/database';
-import type { Transaction, ActivityItem } from '../types/treasury';
-import type { Venue } from '../types/database';

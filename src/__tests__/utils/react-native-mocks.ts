@@ -1,15 +1,14 @@
 // React Native and Expo mocks
-import { vi } from 'vitest';
 
 // Mock react-native
-vi.mock('react-native', () => ({
+jest.mock('react-native', () => ({
   Platform: {
     OS: 'ios',
-    select: vi.fn((obj: any) => obj.ios),
+    select: jest.fn((obj: any) => obj.ios),
   },
   Dimensions: {
-    get: vi.fn(() => ({ width: 375, height: 812 })),
-    addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+    get: jest.fn(() => ({ width: 375, height: 812 })),
+    addEventListener: jest.fn(() => ({ remove: jest.fn() })),
   },
   StyleSheet: {
     create: (styles: any) => styles,
@@ -28,55 +27,55 @@ vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   Modal: 'Modal',
   Alert: {
-    alert: vi.fn(),
+    alert: jest.fn(),
   },
   Linking: {
-    openURL: vi.fn(),
-    canOpenURL: vi.fn(() => Promise.resolve(true)),
+    openURL: jest.fn(),
+    canOpenURL: jest.fn(() => Promise.resolve(true)),
   },
   AsyncStorage: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
   },
 }));
 
 // Mock expo modules
-vi.mock('expo-status-bar', () => ({
+jest.mock('expo-status-bar', () => ({
   StatusBar: () => null,
 }));
 
-vi.mock('expo-constants', () => ({
+jest.mock('expo-constants', () => ({
   default: {
     manifest: {},
     expoConfig: {},
   },
 }));
 
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: vi.fn(),
-  setItemAsync: vi.fn(),
-  deleteItemAsync: vi.fn(),
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
 }));
 
 // Mock react-native-safe-area-context
-vi.mock('react-native-safe-area-context', () => ({
+jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
 }));
 
 // Mock react-native-screens
-vi.mock('react-native-screens', () => ({
-  enableScreens: vi.fn(),
+jest.mock('react-native-screens', () => ({
+  enableScreens: jest.fn(),
 }));
 
 // Mock @react-navigation/native
-vi.mock('@react-navigation/native', () => ({
+jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
-    navigate: vi.fn(),
-    goBack: vi.fn(),
-    setOptions: vi.fn(),
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    setOptions: jest.fn(),
   }),
   useRoute: () => ({
     params: {},
@@ -85,7 +84,7 @@ vi.mock('@react-navigation/native', () => ({
 }));
 
 // Mock @react-navigation/native-stack
-vi.mock('@react-navigation/native-stack', () => ({
+jest.mock('@react-navigation/native-stack', () => ({
   createNativeStackNavigator: () => ({
     Navigator: ({ children }: { children: React.ReactNode }) => children,
     Screen: () => null,
@@ -93,4 +92,4 @@ vi.mock('@react-navigation/native-stack', () => ({
 }));
 
 // Mock react-native-url-polyfill
-vi.mock('react-native-url-polyfill/auto', () => ({}));
+jest.mock('react-native-url-polyfill/auto', () => ({}));
