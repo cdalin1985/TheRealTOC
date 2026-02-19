@@ -1,84 +1,74 @@
 # UI/UX Polish Implementation Summary
 
 ## Overview
-This document summarizes the UI/UX polish implemented for TheRealTOC pool league app on the `feature/ui-polish` branch. The focus was on adding subtle animations, ensuring consistency, and improving accessibility while maintaining a modern, premium feel.
+This document summarizes the UI/UX polish implemented for TheRealTOC pool league app on the `feature/ui-polish` branch.
 
-## Files Created
+## Components Created
 
-### Animation System
-- **`src/lib/animations.ts`** - Core animation constants and utilities
-  - Animation durations (100-300ms for fast, purposeful animations)
-  - Easing functions (standard, enter, exit, press, bounce)
-  - Color constants (ensuring consistency across the app)
-  - Typography constants (H1-H4, Body, Caption, Button)
-  - Spacing constants (XS, SM, MD, LG, XL, XXL)
-  - Touch target sizes (44x44pt minimum for accessibility)
-  - Border radius constants
-  - Shadow styles for iOS/Android
-  - Animation hooks (usePressAnimation, createEntranceAnimation, etc.)
+### Core Animation System
+- **`src/lib/animations.ts`** - Animation constants and utilities
+  - ANIMATION: Durations, easing functions, scale/opacity values
+  - COLORS: Complete dark theme color palette
+  - TYPOGRAPHY: H1-H4, Body, Caption, Button text styles
+  - SPACING: XS-XXL spacing constants
+  - TOUCH_TARGET: 44x44pt minimum for accessibility
+  - RADIUS: Border radius constants
+  - Animation helper functions
 
-### New Components
-- **`src/components/AnimatedButton.tsx`** - Button with press feedback (scale + opacity)
-- **`src/components/AnimatedCard.tsx`** - Card with entrance animations
-- **`src/components/AnimatedInput.tsx`** - Input with focus animations
-- **`src/components/FeedbackToast.tsx`** - Inline feedback messages (error/success/warning/info)
-- **`src/components/LoadingSkeleton.tsx`** - Skeleton loading states
-- **`src/components/Header.tsx`** - Consistent header with back button and animations
-- **`src/components/index.ts`** - Exports for all new components
+### Reusable Components (src/components/)
+1. **AnimatedButton** - Button with press feedback (scale + opacity)
+   - Props: variant, size, loading, disabled
+   - Variants: primary, secondary, outline, ghost, danger
+   - Sizes: small, medium, large
 
-## Files Modified
+2. **AnimatedCard** - Card with entrance animations
+   - Props: index (for stagger), delay, style
+   - Animations: translateY, opacity, scale
 
-### Navigation
-- **`App.tsx`** - Added screen transition animations (slide_from_right, 300ms)
+3. **AnimatedInput** - Input with focus animations
+   - Props: label, error, containerStyle
+   - Features: Border color animation on focus
 
-## Key Improvements
+4. **FeedbackToast** (InlineFeedback) - Inline feedback messages
+   - Types: success, error, warning, info
+   - Animated entrance
 
-### 1. Animation Principles Applied
-- **Subtle, not flashy** - All animations serve a purpose
-- **Fast (150-300ms)** - No waiting around
-- **Consistent easing** - Same feel across the app
-- **Native driver** - 60fps performance
+5. **LoadingSkeleton** - Skeleton loading states
+   - Props: count, style
+   - Shimmer animation effect
 
-### 2. Accessibility
-- **44x44pt minimum touch targets** on all interactive elements
-- **High contrast** text (white on dark background)
-- **Clear visual hierarchy** with consistent typography
-- **Keyboard avoiding views** for form screens
+6. **Header** - Consistent header with animations
+   - Props: title, onBack, rightElement
+   - Animated entrance
 
-### 3. Visual Consistency
-- **Single source of truth** for colors in `animations.ts`
-- **Consistent spacing** using SPACING constants
-- **Unified border radius** (8-16dp)
-- **Standardized shadows** for depth
+7. **NavButton** - Navigation button with press feedback
+   - Props: label, onPress, variant
+   - Variants: primary, secondary
 
-### 4. Loading States
-- **Skeleton screens** instead of spinners
-- **Staggered animations** for list items
-- **Progress indicators** where appropriate
+8. **ScreenWrapper** - Wrapper for consistent screen layout
+   - Props: title, onBack, loading, scrollable, refreshControl
+   - Integrated Header and content animations
 
-### 5. Feedback
-- **Button press feedback** (scale to 0.96 + opacity)
-- **Input focus states** (border color animation)
-- **Inline validation** messages
+## Screens Updated
 
-## Color Palette (Dark Theme)
-- **Background**: #1a1a2e
-- **Surface**: #16213e
-- **Surface Highlight**: #1f2b4d
-- **Primary**: #e94560
-- **Success**: #2ecc71
-- **Warning**: #f1c40f
-- **Error**: #e74c3c
-- **Info**: #3498db
-- **Text Primary**: #ffffff
-- **Text Secondary**: #888888
-- **Text Tertiary**: #666666
+### Auth Screens
+- ✅ **SignInScreen** - Uses AnimatedButton, AnimatedInput, InlineFeedback
+- ✅ **SignUpScreen** - Uses new components + success state
+- ✅ **ProfileSetupScreen** - Uses new components + progress bar
+
+### Main Screens
+- ✅ **StandingsScreen** - Uses Header, NavButton, AnimatedCard, LoadingSkeleton
+- ✅ **MyMatchesScreen** - Uses Header, AnimatedCard, LoadingSkeleton, AnimatedButton
+- ⏳ **MatchDetailScreen** - Pending
+- ⏳ **CreateChallengeScreen** - Pending
+- ⏳ **MyChallengesScreen** - Pending
+- ⏳ **TreasuryScreen** - Pending
 
 ## Usage Examples
 
-### Using AnimatedButton
+### AnimatedButton
 ```tsx
-import { AnimatedButton } from './src/components';
+import { AnimatedButton } from '../components';
 
 <AnimatedButton
   onPress={handlePress}
@@ -90,18 +80,18 @@ import { AnimatedButton } from './src/components';
 </AnimatedButton>
 ```
 
-### Using AnimatedCard
+### AnimatedCard
 ```tsx
-import { AnimatedCard } from './src/components';
+import { AnimatedCard } from '../components';
 
-<AnimatedCard index={0}>
+<AnimatedCard index={index}>
   <Text>Card content</Text>
 </AnimatedCard>
 ```
 
-### Using Header
+### Header
 ```tsx
-import { Header } from './src/components';
+import { Header } from '../components';
 
 <Header
   title="My Matches"
@@ -109,46 +99,109 @@ import { Header } from './src/components';
 />
 ```
 
-### Using InlineFeedback
+### ScreenWrapper
 ```tsx
-import { InlineFeedback } from './src/components';
+import { ScreenWrapper } from '../components';
 
-{error && (
-  <InlineFeedback type="error" message={error} />
-)}
+<ScreenWrapper
+  title="My Matches"
+  onBack={() => navigation.goBack()}
+  loading={loading}
+>
+  {<!-- Screen content -->}
+</ScreenWrapper>
 ```
 
-## Testing Recommendations
-1. Test on older devices (iPhone 8, budget Android) for performance
-2. Verify touch targets are easy to tap
-3. Check animations feel smooth at 60fps
-4. Ensure proper contrast for accessibility
-5. Test screen transitions work smoothly
+### InlineFeedback
+```tsx
+import { InlineFeedback } from '../components';
 
-## Future Enhancements
-1. Add haptic feedback on button presses
-2. Implement pull-to-refresh custom animation
-3. Add swipe actions on list items
-4. Consider adding micro-interactions for score updates
-5. Update all screens to use new components (currently only App.tsx is updated)
+{error && <InlineFeedback type="error" message={error} />}
+```
 
-## Next Steps for Full Integration
-To complete the UI polish across all screens, the following screens need to be updated:
-- SignInScreen.tsx
-- SignUpScreen.tsx
-- ProfileSetupScreen.tsx
-- StandingsScreen.tsx
-- CreateChallengeScreen.tsx
-- MyChallengesScreen.tsx
-- MyMatchesScreen.tsx
-- MatchDetailScreen.tsx
-- TreasuryScreen.tsx
+## Design System
 
-Each screen should:
-1. Import components from `../components`
-2. Import constants from `../lib/animations`
-3. Replace TouchableOpacity with AnimatedButton where appropriate
-4. Add AnimatedCard for list items
-5. Use Header component for consistent navigation
-6. Add entrance animations for content
-7. Ensure 44x44pt touch targets
+### Colors
+- Background: #1a1a2e
+- Surface: #16213e
+- Primary: #e94560
+- Success: #2ecc71
+- Warning: #f1c40f
+- Error: #e74c3c
+- Info: #3498db
+
+### Typography
+- H1: 36px bold
+- H2: 28px bold
+- H3: 20px bold
+- H4: 18px semibold
+- Body: 16px normal
+- Body Small: 14px normal
+- Caption: 12px normal
+
+### Spacing
+- XS: 4px
+- SM: 8px
+- MD: 16px
+- LG: 24px
+- XL: 32px
+- XXL: 48px
+
+### Animation Timing
+- Instant: 100ms
+- Fast: 150ms
+- Normal: 200ms
+- Slow: 300ms
+- Entrance: 250ms
+
+## API Reference
+
+### AnimatedButton Props
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| variant | 'primary' \| 'secondary' \| 'outline' \| 'ghost' \| 'danger' | 'primary' | Button style |
+| size | 'small' \| 'medium' \| 'large' | 'medium' | Button size |
+| loading | boolean | false | Show loading indicator |
+| disabled | boolean | false | Disable button |
+| onPress | () => void | - | Press handler |
+| children | ReactNode | - | Button content |
+
+### AnimatedCard Props
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| index | number | 0 | Index for stagger delay |
+| delay | number | 0 | Additional delay |
+| style | ViewStyle | - | Custom styles |
+| children | ReactNode | - | Card content |
+
+### AnimatedInput Props
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| label | string | - | Input label |
+| error | string | - | Error message |
+| containerStyle | ViewStyle | - | Container styles |
+| ...TextInputProps | - | - | All TextInput props |
+
+### Header Props
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| title | string | - | Header title |
+| onBack | () => void | - | Back button handler |
+| rightElement | ReactNode | - | Right side content |
+| style | ViewStyle | - | Custom styles |
+
+### ScreenWrapper Props
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| title | string | - | Screen title (shows Header) |
+| onBack | () => void | - | Back button handler |
+| loading | boolean | false | Show loading skeleton |
+| scrollable | boolean | true | Enable scrolling |
+| refreshControl | ReactElement | - | Pull to refresh |
+| children | ReactNode | - | Screen content |
+
+## Next Steps
+1. Update remaining screens (MatchDetail, CreateChallenge, MyChallenges, Treasury)
+2. Add haptic feedback
+3. Test on older devices for performance
+4. Verify accessibility (screen readers, contrast)
