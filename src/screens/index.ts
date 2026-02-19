@@ -7,4 +7,4 @@ export { MyChallengesScreen } from './MyChallengesScreen';
 export { MyMatchesScreen } from './MyMatchesScreen';
 export { MatchDetailScreen } from './MatchDetailScreen';
 export { TreasuryScreen } from './TreasuryScreen';
-export { ActivityFeedScreen } from './ActivityFeedScreen';
+export { AdminTreasuryScreen } from './AdminTreasuryScreen';

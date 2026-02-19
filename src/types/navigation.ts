@@ -8,5 +8,6 @@ export type RootStackParamList = {
   MyMatches: undefined;
   MatchDetail: { matchId: string };
   Treasury: undefined;
+  AdminTreasury: undefined;
   ActivityFeed: undefined;
 };

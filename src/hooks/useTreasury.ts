@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { 
   Transaction, 
   PlayerFinancialSummary, 
@@ -7,14 +8,68 @@ import type {
   CategoryBreakdown 
 } from '../types/treasury';
 
+// Cache keys
+const CACHE_KEYS = {
+  transactions: 'treasury:transactions',
+  stats: 'treasury:stats',
+  categoryBreakdown: 'treasury:categoryBreakdown',
+  playerSummaries: 'treasury:playerSummaries',
+  playerFinancials: (playerId: string) => `treasury:player:${playerId}`,
+};
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+async function getCachedData<T>(key: string): Promise<T | null> {
+  try {
+    const cached = await AsyncStorage.getItem(key);
+    if (!cached) return null;
+    
+    const entry: CacheEntry<T> = JSON.parse(cached);
+    const age = Date.now() - entry.timestamp;
+    
+    if (age > CACHE_TTL) {
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
+    
+    return entry.data;
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedData<T>(key: string, data: T): Promise<void> {
+  try {
+    const entry: CacheEntry<T> = { data, timestamp: Date.now() };
+    await AsyncStorage.setItem(key, JSON.stringify(entry));
+  } catch (err) {
+    console.error('Cache write error:', err);
+  }
+}
+
 export function useTreasury() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<TreasuryStats | null>(null);
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const isMounted = useRef(true);
 
-  const fetchTransactions = useCallback(async (limit = 50) => {
+  const fetchTransactions = useCallback(async (limit = 50, useCache = true) => {
+    // Try cache first
+    if (useCache) {
+      const cached = await getCachedData<Transaction[]>(CACHE_KEYS.transactions);
+      if (cached && isMounted.current) {
+        setTransactions(cached);
+      }
+    }
+
     try {
       const { data, error: supabaseError } = await supabase
         .from('transactions')
@@ -34,44 +89,71 @@ export function useTreasury() {
         admin_name: t.admin?.display_name,
       }));
 
-      setTransactions(formatted);
+      if (isMounted.current) {
+        setTransactions(formatted);
+        setIsOffline(false);
+        await setCachedData(CACHE_KEYS.transactions, formatted);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
+      if (isMounted.current) {
+        // Check if we have cached data to show
+        const cached = await getCachedData<Transaction[]>(CACHE_KEYS.transactions);
+        if (cached) {
+          setIsOffline(true);
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
+        }
+      }
     }
   }, []);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (useCache = true) => {
+    if (useCache) {
+      const cached = await getCachedData<TreasuryStats>(CACHE_KEYS.stats);
+      if (cached && isMounted.current) {
+        setStats(cached);
+      }
+    }
+
     try {
-      // Get current balance
-      const { data: balanceData, error: balanceError } = await supabase
-        .rpc('get_league_balance');
-      
-      if (balanceError) throw balanceError;
+      const [{ data: balanceData }, { data: incomeData }, { data: expenseData }] = await Promise.all([
+        supabase.rpc('get_league_balance'),
+        supabase.rpc('get_total_income'),
+        supabase.rpc('get_total_expenses'),
+      ]);
 
-      // Get total income
-      const { data: incomeData, error: incomeError } = await supabase
-        .rpc('get_total_income');
-      
-      if (incomeError) throw incomeError;
-
-      // Get total expenses
-      const { data: expenseData, error: expenseError } = await supabase
-        .rpc('get_total_expenses');
-      
-      if (expenseError) throw expenseError;
-
-      setStats({
+      const newStats: TreasuryStats = {
         currentBalance: balanceData || 0,
         totalIncome: incomeData || 0,
         totalExpenses: expenseData || 0,
         net: (incomeData || 0) - (expenseData || 0),
-      });
+      };
+
+      if (isMounted.current) {
+        setStats(newStats);
+        setIsOffline(false);
+        await setCachedData(CACHE_KEYS.stats, newStats);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch stats');
+      if (isMounted.current) {
+        const cached = await getCachedData<TreasuryStats>(CACHE_KEYS.stats);
+        if (!cached) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch stats');
+        } else {
+          setIsOffline(true);
+        }
+      }
     }
   }, []);
 
-  const fetchCategoryBreakdown = useCallback(async () => {
+  const fetchCategoryBreakdown = useCallback(async (useCache = true) => {
+    if (useCache) {
+      const cached = await getCachedData<CategoryBreakdown[]>(CACHE_KEYS.categoryBreakdown);
+      if (cached && isMounted.current) {
+        setCategoryBreakdown(cached);
+      }
+    }
+
     try {
       const { data, error: supabaseError } = await supabase
         .from('transactions')
@@ -79,14 +161,12 @@ export function useTreasury() {
 
       if (supabaseError) throw supabaseError;
 
-      // Group by category
       const breakdown: Record<string, { total: number; count: number }> = {};
       
       (data || []).forEach((t: any) => {
         if (!breakdown[t.category]) {
           breakdown[t.category] = { total: 0, count: 0 };
         }
-        // For breakdown, show positive for income, negative for expense
         const signedAmount = t.type === 'expense' ? -t.amount : t.amount;
         breakdown[t.category].total += signedAmount;
         breakdown[t.category].count += 1;
@@ -100,9 +180,12 @@ export function useTreasury() {
         })
       );
 
-      setCategoryBreakdown(formatted);
+      if (isMounted.current) {
+        setCategoryBreakdown(formatted);
+        await setCachedData(CACHE_KEYS.categoryBreakdown, formatted);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch breakdown');
+      console.error('Error fetching category breakdown:', err);
     }
   }, []);
 
@@ -117,16 +200,18 @@ export function useTreasury() {
         .insert({
           type: 'expense',
           category,
-          amount: Math.round(amount * 100), // Convert dollars to cents
+          amount: Math.round(amount * 100),
           description,
         });
 
       if (supabaseError) throw supabaseError;
 
-      // Refresh data
-      await fetchTransactions();
-      await fetchStats();
-      await fetchCategoryBreakdown();
+      // Refresh data (bypass cache)
+      await Promise.all([
+        fetchTransactions(50, false),
+        fetchStats(false),
+        fetchCategoryBreakdown(false),
+      ]);
       
       return { success: true };
     } catch (err) {
@@ -141,16 +226,34 @@ export function useTreasury() {
     setLoading(true);
     setError(null);
     await Promise.all([
-      fetchTransactions(),
-      fetchStats(),
-      fetchCategoryBreakdown(),
+      fetchTransactions(50, false),
+      fetchStats(false),
+      fetchCategoryBreakdown(false),
     ]);
     setLoading(false);
   }, [fetchTransactions, fetchStats, fetchCategoryBreakdown]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    isMounted.current = true;
+    
+    const loadInitialData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchTransactions(),
+        fetchStats(),
+        fetchCategoryBreakdown(),
+      ]);
+      if (isMounted.current) {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+
+    return () => {
+      isMounted.current = false;
+    };
+  }, [fetchTransactions, fetchStats, fetchCategoryBreakdown]);
 
   return {
     transactions,
@@ -158,6 +261,7 @@ export function useTreasury() {
     categoryBreakdown,
     loading,
     error,
+    isOffline,
     refresh,
     addExpense,
   };
@@ -167,67 +271,102 @@ export function usePlayerFinancials(playerId: string | null) {
   const [summary, setSummary] = useState<PlayerFinancialSummary | null>(null);
   const [playerTransactions, setPlayerTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
 
-  const fetchPlayerData = useCallback(async () => {
+  const fetchPlayerData = useCallback(async (useCache = true) => {
     if (!playerId) {
       setLoading(false);
       return;
     }
 
-    try {
-      // Get summary
-      const { data: summaryData } = await supabase
-        .from('player_financial_summary')
-        .select(`
-          *,
-          player:player_id (
-            profiles:profile_id (display_name),
-            ranks (rank_position)
-          )
-        `)
-        .eq('player_id', playerId)
-        .single();
+    const cacheKey = CACHE_KEYS.playerFinancials(playerId);
 
-      if (summaryData) {
-        setSummary({
+    if (useCache) {
+      const cached = await getCachedData<{ summary: PlayerFinancialSummary; transactions: Transaction[] }>(cacheKey);
+      if (cached && isMounted.current) {
+        setSummary(cached.summary);
+        setPlayerTransactions(cached.transactions);
+      }
+    }
+
+    try {
+      const [{ data: summaryData }, { data: txData }] = await Promise.all([
+        supabase
+          .from('player_financial_summary')
+          .select(`
+            *,
+            player:player_id (
+              profiles:profile_id (display_name),
+              ranks (rank_position)
+            )
+          `)
+          .eq('player_id', playerId)
+          .single(),
+        supabase
+          .from('transactions')
+          .select('*')
+          .eq('player_id', playerId)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (summaryData && isMounted.current) {
+        const formattedSummary = {
           ...summaryData,
           display_name: summaryData.player?.profiles?.display_name,
           rank_position: summaryData.player?.ranks?.[0]?.rank_position,
+        };
+        setSummary(formattedSummary);
+        setPlayerTransactions(txData || []);
+        
+        await setCachedData(cacheKey, {
+          summary: formattedSummary,
+          transactions: txData || [],
         });
       }
-
-      // Get player's transactions
-      const { data: txData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('player_id', playerId)
-        .order('created_at', { ascending: false });
-
-      setPlayerTransactions(txData || []);
     } catch (err) {
       console.error('Error fetching player financials:', err);
+      // Try to use cached data on error
+      const cached = await getCachedData<{ summary: PlayerFinancialSummary; transactions: Transaction[] }>(cacheKey);
+      if (cached && isMounted.current) {
+        setSummary(cached.summary);
+        setPlayerTransactions(cached.transactions);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [playerId]);
 
   useEffect(() => {
+    isMounted.current = true;
     fetchPlayerData();
+    return () => {
+      isMounted.current = false;
+    };
   }, [fetchPlayerData]);
 
   return {
     summary,
     transactions: playerTransactions,
     loading,
-    refresh: fetchPlayerData,
+    refresh: () => fetchPlayerData(false),
   };
 }
 
 export function useAllPlayerFinancials() {
   const [summaries, setSummaries] = useState<PlayerFinancialSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (useCache = true) => {
+    if (useCache) {
+      const cached = await getCachedData<PlayerFinancialSummary[]>(CACHE_KEYS.playerSummaries);
+      if (cached && isMounted.current) {
+        setSummaries(cached);
+      }
+    }
+
     try {
       const { data } = await supabase
         .from('player_financial_summary')
@@ -246,17 +385,30 @@ export function useAllPlayerFinancials() {
         rank_position: s.player?.ranks?.[0]?.rank_position,
       }));
 
-      setSummaries(formatted);
+      if (isMounted.current) {
+        setSummaries(formatted);
+        await setCachedData(CACHE_KEYS.playerSummaries, formatted);
+      }
     } catch (err) {
       console.error('Error fetching all financials:', err);
+      const cached = await getCachedData<PlayerFinancialSummary[]>(CACHE_KEYS.playerSummaries);
+      if (cached && isMounted.current) {
+        setSummaries(cached);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    isMounted.current = true;
     fetchAll();
+    return () => {
+      isMounted.current = false;
+    };
   }, [fetchAll]);
 
-  return { summaries, loading, refresh: fetchAll };
+  return { summaries, loading, refresh: () => fetchAll(false) };
 }

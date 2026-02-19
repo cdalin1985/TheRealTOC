@@ -7,10 +7,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useTreasury, useAllPlayerFinancials } from '../hooks/useTreasury';
+import { useTreasury, useAllPlayerFinancials, usePlayerFinancials } from '../hooks/useTreasury';
+import { useAuth } from '../hooks/useAuth';
 import { formatCurrency } from '../lib/formatters';
+import { PaymentButton } from '../components/PaymentButton';
+import { PlayerPaymentHistory } from '../components/PlayerPaymentHistory';
 import type { RootStackParamList } from '../types/navigation';
 import type { Transaction, PlayerFinancialSummary, TransactionCategory } from '../types/treasury';
 
@@ -84,9 +88,9 @@ function TransactionItem({ item }: { item: Transaction }) {
   );
 }
 
-function PlayerSummaryItem({ item, index }: { item: PlayerFinancialSummary; index: number }) {
+function PlayerSummaryItem({ item, index, onPress }: { item: PlayerFinancialSummary; index: number; onPress?: () => void }) {
   return (
-    <View style={styles.playerItem}>
+    <TouchableOpacity style={styles.playerItem} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.playerRank}>
         <Text style={styles.playerRankText}>#{index + 1}</Text>
       </View>
@@ -103,14 +107,38 @@ function PlayerSummaryItem({ item, index }: { item: PlayerFinancialSummary; inde
           {item.net_contribution >= 0 ? '+' : ''}{formatCurrency(item.net_contribution)}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export function TreasuryScreen({ navigation }: Props) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'players'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'players' | 'my-history'>('overview');
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const { transactions, stats, loading, error, refresh } = useTreasury();
   const { summaries: playerSummaries, loading: playersLoading } = useAllPlayerFinancials();
+  const { profile, user } = useAuth();
+  
+  // Get current user's player data
+  const { summary: mySummary } = usePlayerFinancials(profile?.id || null);
+
+  const isAdmin = profile?.is_admin ?? false;
+
+  const handlePaymentComplete = () => {
+    Alert.alert(
+      'Payment Initiated',
+      'Thank you! Please complete the payment in your selected app. The treasurer will verify and record your payment.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handlePaymentError = (error: string) => {
+    Alert.alert('Payment Error', error);
+  };
+
+  const handlePlayerPress = (playerId: string) => {
+    setSelectedPlayerId(playerId);
+    setActiveTab('my-history');
+  };
 
   const renderContent = () => {
     if (activeTab === 'overview') {
@@ -121,6 +149,33 @@ export function TreasuryScreen({ navigation }: Props) {
           }
         >
           <BalanceCard stats={stats} />
+          
+          {/* Quick Payment Section */}
+          <View style={styles.paymentSection}>
+            <Text style={styles.sectionTitle}>Quick Payment</Text>
+            <View style={styles.paymentCard}>
+              <Text style={styles.paymentDescription}>
+                Pay your match fee ($5.00) quickly using your preferred payment app.
+              </Text>
+              <PaymentButton
+                amount={5.00}
+                description="Pool league match fee"
+                onPaymentComplete={handlePaymentComplete}
+                onPaymentError={handlePaymentError}
+                buttonStyle="primary"
+              />
+            </View>
+          </View>
+          
+          {/* Admin Access Button */}
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.adminButton}
+              onPress={() => navigation.navigate('AdminTreasury')}
+            >
+              <Text style={styles.adminButtonText}>🔒 Admin Treasury</Text>
+            </TouchableOpacity>
+          )}
           
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
@@ -158,10 +213,51 @@ export function TreasuryScreen({ navigation }: Props) {
             <RefreshControl refreshing={playersLoading} onRefresh={refresh} tintColor="#e94560" />
           }
         >
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Player Contributions</Text>
+            <Text style={styles.sectionSubtitle}>Tap a player to view their history</Text>
+          </View>
           {playerSummaries.map((p, i) => (
-            <PlayerSummaryItem key={p.player_id} item={p} index={i} />
+            <PlayerSummaryItem 
+              key={p.player_id} 
+              item={p} 
+              index={i} 
+              onPress={() => handlePlayerPress(p.player_id)}
+            />
           ))}
         </ScrollView>
+      );
+    }
+
+    if (activeTab === 'my-history') {
+      const targetPlayerId = selectedPlayerId || profile?.id;
+      const targetPlayerName = selectedPlayerId 
+        ? playerSummaries.find(p => p.player_id === selectedPlayerId)?.display_name
+        : profile?.display_name;
+
+      return (
+        <View style={styles.historyContainer}>
+          <View style={styles.historyHeader}>
+            <TouchableOpacity 
+              style={styles.backToPlayersButton}
+              onPress={() => {
+                setSelectedPlayerId(null);
+                setActiveTab('players');
+              }}
+            >
+              <Text style={styles.backToPlayersText}>← Back to Players</Text>
+            </TouchableOpacity>
+            <Text style={styles.historyTitle}>
+              {selectedPlayerId ? `${targetPlayerName}'s History` : 'My Payment History'}
+            </Text>
+          </View>
+          {targetPlayerId && (
+            <PlayerPaymentHistory 
+              playerId={targetPlayerId} 
+              playerName={targetPlayerName}
+            />
+          )}
+        </View>
       );
     }
 
@@ -186,14 +282,17 @@ export function TreasuryScreen({ navigation }: Props) {
           <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>Overview</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'transactions' && styles.tabActive]}
+          style={[styles.tab, (activeTab === 'transactions' || activeTab === 'my-history') && styles.tabActive]}
           onPress={() => setActiveTab('transactions')}
         >
-          <Text style={[styles.tabText, activeTab === 'transactions' && styles.tabTextActive]}>Transactions</Text>
+          <Text style={[styles.tabText, (activeTab === 'transactions' || activeTab === 'my-history') && styles.tabTextActive]}>Transactions</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'players' && styles.tabActive]}
-          onPress={() => setActiveTab('players')}
+          onPress={() => {
+            setSelectedPlayerId(null);
+            setActiveTab('players');
+          }}
         >
           <Text style={[styles.tabText, activeTab === 'players' && styles.tabTextActive]}>Players</Text>
         </TouchableOpacity>
@@ -324,6 +423,33 @@ const styles = StyleSheet.create({
   expenseText: {
     color: '#e74c3c',
   },
+  paymentSection: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  paymentCard: {
+    backgroundColor: '#16213e',
+    borderRadius: 16,
+    padding: 20,
+  },
+  paymentDescription: {
+    color: '#888',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  adminButton: {
+    backgroundColor: '#6B1CB0',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  adminButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   section: {
     padding: 16,
   },
@@ -332,6 +458,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
+  },
+  sectionSubtitle: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 12,
   },
   viewAll: {
     color: '#e94560',
@@ -435,5 +567,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
+  },
+  historyContainer: {
+    flex: 1,
+  },
+  historyHeader: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  backToPlayersButton: {
+    marginBottom: 8,
+  },
+  backToPlayersText: {
+    color: '#e94560',
+    fontSize: 14,
+  },
+  historyTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
