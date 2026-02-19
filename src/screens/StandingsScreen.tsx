@@ -1,16 +1,18 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { Header, NavButton, AnimatedCard, LoadingSkeleton } from '../components';
+import { COLORS, TYPOGRAPHY, SPACING, ANIMATION } from '../lib/animations';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = {
@@ -25,11 +27,53 @@ interface RankWithPlayer {
   display_name: string;
 }
 
+function RankItem({
+  item,
+  index,
+  isCurrentUser,
+}: {
+  item: RankWithPlayer;
+  index: number;
+  isCurrentUser: boolean;
+}) {
+  return (
+    <AnimatedCard 
+      index={index} 
+      style={[
+        styles.rankItem, 
+        isCurrentUser && styles.rankItemCurrent
+      ]}
+    >
+      <View style={styles.rankPosition}>
+        <Text style={styles.rankNumber}>#{item.rank_position}</Text>
+      </View>
+      <View style={styles.playerInfo}>
+        <Text style={styles.playerName} numberOfLines={1}>
+          {item.display_name}
+          {isCurrentUser && <Text style={styles.youBadge}> (You)</Text>}
+        </Text>
+        <Text style={styles.points}>{item.points} pts</Text>
+      </View>
+    </AnimatedCard>
+  );
+}
+
 export function StandingsScreen({ navigation }: Props) {
   const [rankings, setRankings] = useState<RankWithPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { profile, signOut } = useAuth();
+
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(headerOpacity, {
+      toValue: 1,
+      duration: ANIMATION.DURATION.SLOW,
+      easing: ANIMATION.EASING.STANDARD,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const fetchRankings = useCallback(async () => {
     const { data, error } = await supabase
@@ -79,71 +123,81 @@ export function StandingsScreen({ navigation }: Props) {
     await signOut();
   };
 
-  const renderRankItem = ({ item }: { item: RankWithPlayer }) => (
-    <View style={styles.rankItem}>
-      <View style={styles.rankPosition}>
-        <Text style={styles.rankNumber}>#{item.rank_position}</Text>
-      </View>
-      <View style={styles.playerInfo}>
-        <Text style={styles.playerName}>{item.display_name}</Text>
-        <Text style={styles.points}>{item.points} pts</Text>
-      </View>
-    </View>
-  );
+  const renderRankItem = ({ item, index }: { item: RankWithPlayer; index: number }) => {
+    const isCurrentUser = profile?.id === item.player_id;
+    return (
+      <RankItem
+        item={item}
+        index={index}
+        isCurrentUser={isCurrentUser}
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>The List</Text>
-        <TouchableOpacity onPress={handleSignOut}>
-          <Text style={styles.signOut}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="The List"
+        rightElement={
+          <TouchableOpacity
+            onPress={handleSignOut}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.signOut}>Sign Out</Text>
+          </TouchableOpacity>
+        }
+      />
 
-      {profile && (
-        <Text style={styles.welcome}>
-          Welcome, {profile.display_name}
-        </Text>
-      )}
-
-      <View style={styles.navButtons}>
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => navigation.navigate('CreateChallenge')}
-        >
-          <Text style={styles.navButtonText}>New Challenge</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.navButton, styles.navButtonSecondary]}
-          onPress={() => navigation.navigate('MyChallenges')}
-        >
-          <Text style={styles.navButtonText}>Challenges</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.navButton, styles.navButtonSecondary]}
-          onPress={() => navigation.navigate('MyMatches')}
-        >
-          <Text style={styles.navButtonText}>Matches</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        style={styles.treasuryButton}
-        onPress={() => navigation.navigate('Treasury')}
+      <Animated.View
+        style={[
+          styles.welcomeSection,
+          { opacity: headerOpacity },
+        ]}
       >
-        <Text style={styles.treasuryButtonText}>💰 View League Treasury</Text>
-      </TouchableOpacity>
+        {profile && (
+          <Text style={styles.welcome}>
+            Welcome, <Text style={styles.welcomeName}>{profile.display_name}</Text>
+          </Text>
+        )}
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.navButtons,
+          { opacity: headerOpacity },
+        ]}
+      >
+        <NavButton
+          label="New Challenge"
+          onPress={() => navigation.navigate('CreateChallenge')}
+          variant="primary"
+        />
+        <NavButton
+          label="Challenges"
+          onPress={() => navigation.navigate('MyChallenges')}
+        />
+        <NavButton
+          label="Matches"
+          onPress={() => navigation.navigate('MyMatches')}
+        />
+      </Animated.View>
+
+      <Animated.View style={{ opacity: headerOpacity }}>
+        <TouchableOpacity
+          style={styles.treasuryButton}
+          onPress={() => navigation.navigate('Treasury')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.treasuryButtonText}>💰 View League Treasury</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#e94560" />
-        </View>
+        <LoadingSkeleton count={5} />
       ) : rankings.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyText}>No rankings yet</Text>
-          <Text style={styles.emptySubtext}>
-            Be the first to join The List!
-          </Text>
+          <Text style={styles.emptySubtext}>Be the first to join The List!</Text>
         </View>
       ) : (
         <FlatList
@@ -151,11 +205,13 @@ export function StandingsScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           renderItem={renderRankItem}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#e94560"
+              tintColor={COLORS.PRIMARY}
+              colors={[COLORS.PRIMARY]}
             />
           }
         />
@@ -167,74 +223,66 @@ export function StandingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: COLORS.BACKGROUND,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  signOut: {
-    color: '#e94560',
-    fontSize: 14,
+  welcomeSection: {
+    paddingHorizontal: SPACING.LG,
+    marginBottom: SPACING.MD,
   },
   welcome: {
-    color: '#888',
+    ...TYPOGRAPHY.BODY_SMALL,
+    color: COLORS.TEXT_SECONDARY,
+  },
+  welcomeName: {
+    color: COLORS.TEXT_PRIMARY,
+    fontWeight: '600',
+  },
+  signOut: {
+    color: COLORS.PRIMARY,
     fontSize: 14,
-    paddingHorizontal: 20,
-    marginBottom: 16,
   },
   navButtons: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 8,
+    paddingHorizontal: SPACING.MD,
+    marginBottom: SPACING.MD,
+    gap: SPACING.SM,
   },
-  navButton: {
-    flex: 1,
-    backgroundColor: '#e94560',
-    paddingVertical: 12,
-    borderRadius: 8,
+  treasuryButton: {
+    backgroundColor: COLORS.SUCCESS,
+    marginHorizontal: SPACING.MD,
+    marginBottom: SPACING.MD,
+    padding: SPACING.MD,
+    borderRadius: 12,
     alignItems: 'center',
   },
-  navButtonSecondary: {
-    backgroundColor: '#16213e',
-  },
-  navButtonText: {
-    color: '#fff',
-    fontSize: 14,
+  treasuryButtonText: {
+    ...TYPOGRAPHY.BODY,
+    color: COLORS.TEXT_PRIMARY,
     fontWeight: '600',
   },
   list: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.MD,
+    paddingBottom: SPACING.LG,
   },
   rankItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+  },
+  rankItemCurrent: {
+    borderWidth: 2,
+    borderColor: COLORS.PRIMARY,
   },
   rankPosition: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#e94560',
+    backgroundColor: COLORS.PRIMARY,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: SPACING.MD,
   },
   rankNumber: {
-    color: '#fff',
+    color: COLORS.TEXT_PRIMARY,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -242,13 +290,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playerName: {
-    color: '#fff',
+    color: COLORS.TEXT_PRIMARY,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
   },
+  youBadge: {
+    color: COLORS.PRIMARY,
+    fontWeight: '400',
+  },
   points: {
-    color: '#888',
+    color: COLORS.TEXT_SECONDARY,
     fontSize: 14,
   },
   centered: {
@@ -257,25 +309,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#fff',
-    fontSize: 18,
-    marginBottom: 8,
+    ...TYPOGRAPHY.H4,
   },
   emptySubtext: {
-    color: '#666',
-    fontSize: 14,
-  },
-  treasuryButton: {
-    backgroundColor: '#2ecc71',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  treasuryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TYPOGRAPHY.BODY_SMALL,
+    textAlign: 'center',
   },
 });

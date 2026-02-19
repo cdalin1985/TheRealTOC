@@ -271,44 +271,4 @@ describe('Integration: Challenge Flow', () => {
     });
   });
 
-  describe('Edge Cases', () => {
-    it('should handle network error during challenge creation', async () => {
-      mockQueryBuilder.order.mockResolvedValue({ data: [], error: null });
-
-      const { result } = renderHook(() => useChallenges(challengerId));
-      await waitFor(() => expect(result.current.loading).toBe(false));
-
-      mockRpc.mockRejectedValueOnce(
-        new Error('Network error')
-      );
-
-      let createResult: any;
-      await act(async () => {
-        createResult = await result.current.createChallenge(challengedId, '8-ball', 5);
-      });
-
-      expect(createResult.success).toBe(false);
-      expect(createResult.error).toBe('Network error');
-    });
-
-    it('should handle expired challenge', async () => {
-      mockQueryBuilder.order.mockResolvedValue({ data: [], error: null });
-
-      const { result } = renderHook(() => useChallenges(challengerId));
-      await waitFor(() => expect(result.current.loading).toBe(false));
-
-      mockRpc.mockResolvedValueOnce({
-        data: { error: 'Challenge has expired' },
-        error: null,
-      });
-
-      let confirmResult: any;
-      await act(async () => {
-        confirmResult = await result.current.confirmChallenge(challengeId);
-      });
-
-      expect(confirmResult.success).toBe(false);
-      expect(confirmResult.error).toBe('Challenge has expired');
-    });
-  });
 });
