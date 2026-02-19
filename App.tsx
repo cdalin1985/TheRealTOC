@@ -12,6 +12,8 @@ import {
   MyChallengesScreen,
   MyMatchesScreen,
   MatchDetailScreen,
+  TreasuryScreen,
+  AdminTreasuryScreen,
 } from './src/screens';
 import { useAuth } from './src/hooks/useAuth';
 import type { RootStackParamList } from './src/types/navigation';
@@ -57,6 +59,8 @@ function Navigation() {
           <Stack.Screen name="MyChallenges" component={MyChallengesScreen} />
           <Stack.Screen name="MyMatches" component={MyMatchesScreen} />
           <Stack.Screen name="MatchDetail" component={MatchDetailScreen} />
+          <Stack.Screen name="Treasury" component={TreasuryScreen} />
+          <Stack.Screen name="AdminTreasury" component={AdminTreasuryScreen} />
         </>
       )}
     </Stack.Navigator>

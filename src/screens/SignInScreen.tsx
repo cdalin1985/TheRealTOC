@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../hooks/useAuth';
+import { AnimatedButton } from '../components/AnimatedButton';
+import { AnimatedInput } from '../components/AnimatedInput';
+import { InlineFeedback } from '../components/FeedbackToast';
+import { COLORS, TYPOGRAPHY, SPACING, ANIMATION } from '../lib/animations';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = {
@@ -20,115 +25,192 @@ export function SignInScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuth();
 
-  const handleSignIn = async () => {
+  // Entrance animations
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const formTranslateY = useRef(new Animated.Value(30)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    // Staggered entrance animation
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: ANIMATION.DURATION.SLOW,
+          easing: ANIMATION.EASING.STANDARD,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: ANIMATION.DURATION.SLOW,
+          easing: ANIMATION.EASING.ENTER,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(formTranslateY, {
+          toValue: 0,
+          duration: ANIMATION.DURATION.ENTRANCE,
+          easing: ANIMATION.EASING.ENTER,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: ANIMATION.DURATION.ENTRANCE,
+          easing: ANIMATION.EASING.STANDARD,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
+
+  const handleSignIn = useCallback(async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setError('Please fill in all fields');
       return;
     }
 
+    setError(null);
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const { error: signInError } = await signIn(email, password);
     setLoading(false);
 
-    if (error) {
-      Alert.alert('Error', error.message);
+    if (signInError) {
+      setError(signInError.message);
     }
-  };
+  }, [email, password, signIn]);
+
+  const handleNavigateToSignUp = useCallback(() => {
+    navigation.navigate('SignUp');
+  }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>TOC</Text>
-      <Text style={styles.subtitle}>The List</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#666"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#666"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSignIn}
-        disabled={loading}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign In</Text>
-        )}
-      </TouchableOpacity>
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            {
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+            },
+          ]}
+        >
+          <Text style={styles.title}>TOC</Text>
+          <Text style={styles.subtitle}>The List</Text>
+        </Animated.View>
 
-      <TouchableOpacity
-        style={styles.linkButton}
-        onPress={() => navigation.navigate('SignUp')}
-      >
-        <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
-      </TouchableOpacity>
-    </View>
+        <Animated.View
+          style={[
+            styles.formContainer,
+            {
+              opacity: formOpacity,
+              transform: [{ translateY: formTranslateY }],
+            },
+          ]}
+        >
+          {error && (
+            <InlineFeedback type="error" message={error} style={styles.errorContainer} />
+          )}
+
+          <AnimatedInput
+            label="Email"
+            placeholder="Enter your email"
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              setError(null);
+            }}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            icon="mail-outline"
+            autoComplete="email"
+          />
+
+          <AnimatedInput
+            label="Password"
+            placeholder="Enter your password"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              setError(null);
+            }}
+            secureTextEntry
+            icon="lock-closed-outline"
+            autoComplete="password"
+          />
+
+          <AnimatedButton
+            onPress={handleSignIn}
+            loading={loading}
+            disabled={loading}
+            size="large"
+            style={styles.signInButton}
+          >
+            Sign In
+          </AnimatedButton>
+
+          <AnimatedButton
+            variant="ghost"
+            onPress={handleNavigateToSignUp}
+            disabled={loading}
+            style={styles.linkButton}
+          >
+            Don't have an account? Sign Up
+          </AnimatedButton>
+        </Animated.View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.BACKGROUND,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#1a1a2e',
+    padding: SPACING.LG,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.XL,
   },
   title: {
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 8,
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: SPACING.XS,
+    letterSpacing: 2,
   },
   subtitle: {
     fontSize: 18,
-    color: '#888',
-    textAlign: 'center',
-    marginBottom: 40,
+    color: COLORS.TEXT_SECONDARY,
+    letterSpacing: 4,
+    textTransform: 'uppercase',
   },
-  input: {
-    backgroundColor: '#16213e',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    color: '#fff',
-    fontSize: 16,
+  formContainer: {
+    width: '100%',
   },
-  button: {
-    backgroundColor: '#e94560',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
+  errorContainer: {
+    marginBottom: SPACING.MD,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  signInButton: {
+    marginTop: SPACING.SM,
   },
   linkButton: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#e94560',
-    fontSize: 14,
+    marginTop: SPACING.MD,
   },
 });

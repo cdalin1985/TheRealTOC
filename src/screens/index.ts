@@ -6,3 +6,5 @@ export { CreateChallengeScreen } from './CreateChallengeScreen';
 export { MyChallengesScreen } from './MyChallengesScreen';
 export { MyMatchesScreen } from './MyMatchesScreen';
 export { MatchDetailScreen } from './MatchDetailScreen';
+export { TreasuryScreen } from './TreasuryScreen';
+export { AdminTreasuryScreen } from './AdminTreasuryScreen';

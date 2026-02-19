@@ -7,4 +7,7 @@ export type RootStackParamList = {
   MyChallenges: undefined;
   MyMatches: undefined;
   MatchDetail: { matchId: string };
+  Treasury: undefined;
+  AdminTreasury: undefined;
+  ActivityFeed: undefined;
 };

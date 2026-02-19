@@ -1,16 +1,21 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { Header, NavButton } from '../components/Header';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
+import { AnimatedCard } from '../components/AnimatedCard';
+import { COLORS, TYPOGRAPHY, SPACING, ANIMATION } from '../lib/animations';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = {
@@ -25,11 +30,77 @@ interface RankWithPlayer {
   display_name: string;
 }
 
+function RankItem({
+  item,
+  index,
+  isCurrentUser,
+}: {
+  item: RankWithPlayer;
+  index: number;
+  isCurrentUser: boolean;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.timing(scale, {
+      toValue: ANIMATION.SCALE.PRESSED,
+      duration: ANIMATION.DURATION.FAST,
+      easing: ANIMATION.EASING.PRESS,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.timing(scale, {
+      toValue: 1,
+      duration: ANIMATION.DURATION.FAST,
+      easing: ANIMATION.EASING.STANDARD,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <AnimatedCard index={index} style={[styles.rankItem, isCurrentUser && styles.rankItemCurrent]}>
+      <View style={styles.rankPosition}>
+        <Text style={styles.rankNumber}>#{item.rank_position}</Text>
+      </View>
+      <View style={styles.playerInfo}>
+        <Text style={styles.playerName} numberOfLines={1}>
+          {item.display_name}
+          {isCurrentUser && <Text style={styles.youBadge}> (You)</Text>}
+        </Text>
+        <Text style={styles.points}>{item.points} pts</Text>
+      </View>
+    </AnimatedCard>
+  );
+}
+
 export function StandingsScreen({ navigation }: Props) {
   const [rankings, setRankings] = useState<RankWithPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
+
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: ANIMATION.DURATION.SLOW,
+        easing: ANIMATION.EASING.STANDARD,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentTranslateY, {
+        toValue: 0,
+        duration: ANIMATION.DURATION.ENTRANCE,
+        delay: 100,
+        easing: ANIMATION.EASING.ENTER,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const fetchRankings = useCallback(async () => {
     const { data, error } = await supabase
@@ -79,80 +150,125 @@ export function StandingsScreen({ navigation }: Props) {
     await signOut();
   };
 
-  const renderRankItem = ({ item }: { item: RankWithPlayer }) => (
-    <View style={styles.rankItem}>
-      <View style={styles.rankPosition}>
-        <Text style={styles.rankNumber}>#{item.rank_position}</Text>
-      </View>
-      <View style={styles.playerInfo}>
-        <Text style={styles.playerName}>{item.display_name}</Text>
-        <Text style={styles.points}>{item.points} pts</Text>
-      </View>
-    </View>
-  );
+  const renderRankItem = ({ item, index }: { item: RankWithPlayer; index: number }) => {
+    const isCurrentUser = profile?.id === item.player_id;
+    return (
+      <RankItem
+        item={item}
+        index={index}
+        isCurrentUser={isCurrentUser}
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>The List</Text>
-        <TouchableOpacity onPress={handleSignOut}>
-          <Text style={styles.signOut}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="The List"
+        rightElement={
+          <TouchableOpacity
+            onPress={handleSignOut}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="log-out-outline" size={24} color={COLORS.PRIMARY} />
+          </TouchableOpacity>
+        }
+      />
 
-      {profile && (
-        <Text style={styles.welcome}>
-          Welcome, {profile.display_name}
-        </Text>
-      )}
-
-      <View style={styles.navButtons}>
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => navigation.navigate('CreateChallenge')}
-        >
-          <Text style={styles.navButtonText}>New Challenge</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.navButton, styles.navButtonSecondary]}
-          onPress={() => navigation.navigate('MyChallenges')}
-        >
-          <Text style={styles.navButtonText}>Challenges</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.navButton, styles.navButtonSecondary]}
-          onPress={() => navigation.navigate('MyMatches')}
-        >
-          <Text style={styles.navButtonText}>Matches</Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#e94560" />
-        </View>
-      ) : rankings.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.emptyText}>No rankings yet</Text>
-          <Text style={styles.emptySubtext}>
-            Be the first to join The List!
+      <Animated.View
+        style={[
+          styles.welcomeSection,
+          {
+            opacity: headerOpacity,
+          },
+        ]}
+      >
+        {profile && (
+          <Text style={styles.welcome}>
+            Welcome, <Text style={styles.welcomeName}>{profile.display_name}</Text>
           </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={rankings}
-          keyExtractor={(item) => item.id}
-          renderItem={renderRankItem}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#e94560"
-            />
-          }
+        )}
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.navButtons,
+          {
+            opacity: headerOpacity,
+          },
+        ]}
+      >
+        <NavButton
+          label="New Challenge"
+          onPress={() => navigation.navigate('CreateChallenge')}
+          variant="primary"
+          icon="add-circle-outline"
         />
-      )}
+        <NavButton
+          label="Challenges"
+          onPress={() => navigation.navigate('MyChallenges')}
+          icon="trophy-outline"
+        />
+        <NavButton
+          label="Matches"
+          onPress={() => navigation.navigate('MyMatches')}
+          icon="game-controller-outline"
+        />
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          {
+            opacity: headerOpacity,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.treasuryButton}
+          onPress={() => navigation.navigate('Treasury')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="cash-outline" size={20} color={COLORS.TEXT_PRIMARY} />
+          <Text style={styles.treasuryButtonText}>View League Treasury</Text>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.TEXT_SECONDARY} />
+        </TouchableOpacity>
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: headerOpacity,
+            transform: [{ translateY: contentTranslateY }],
+          },
+        ]}
+      >
+        {loading ? (
+          <LoadingSkeleton count={5} />
+        ) : rankings.length === 0 ? (
+          <View style={styles.centered}>
+            <Ionicons name="list-outline" size={48} color={COLORS.TEXT_TERTIARY} />
+            <Text style={styles.emptyText}>No rankings yet</Text>
+            <Text style={styles.emptySubtext}>Be the first to join The List!</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={rankings}
+            keyExtractor={(item) => item.id}
+            renderItem={renderRankItem}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={COLORS.PRIMARY}
+                colors={[COLORS.PRIMARY]}
+              />
+            }
+          />
+        )}
+      </Animated.View>
     </View>
   );
 }
@@ -160,74 +276,74 @@ export function StandingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: COLORS.BACKGROUND,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  signOut: {
-    color: '#e94560',
-    fontSize: 14,
+  welcomeSection: {
+    paddingHorizontal: SPACING.LG,
+    marginBottom: SPACING.MD,
   },
   welcome: {
-    color: '#888',
-    fontSize: 14,
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    ...TYPOGRAPHY.BODY_SMALL,
+    color: COLORS.TEXT_SECONDARY,
+  },
+  welcomeName: {
+    color: COLORS.TEXT_PRIMARY,
+    fontWeight: '600',
   },
   navButtons: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 8,
+    paddingHorizontal: SPACING.MD,
+    marginBottom: SPACING.MD,
+    gap: SPACING.SM,
   },
-  navButton: {
-    flex: 1,
-    backgroundColor: '#e94560',
-    paddingVertical: 12,
-    borderRadius: 8,
+  treasuryButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.SUCCESS,
+    marginHorizontal: SPACING.MD,
+    marginBottom: SPACING.MD,
+    padding: SPACING.MD,
+    borderRadius: 12,
+    gap: SPACING.SM,
   },
-  navButtonSecondary: {
-    backgroundColor: '#16213e',
-  },
-  navButtonText: {
-    color: '#fff',
-    fontSize: 14,
+  treasuryButtonText: {
+    ...TYPOGRAPHY.BODY,
+    color: COLORS.TEXT_PRIMARY,
     fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
+  },
+  content: {
+    flex: 1,
   },
   list: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.MD,
+    paddingBottom: SPACING.LG,
   },
   rankItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
+    backgroundColor: COLORS.SURFACE,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    padding: SPACING.MD,
+    marginBottom: SPACING.SM,
+  },
+  rankItemCurrent: {
+    borderWidth: 2,
+    borderColor: COLORS.PRIMARY,
   },
   rankPosition: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#e94560',
+    backgroundColor: COLORS.PRIMARY,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: SPACING.MD,
   },
   rankNumber: {
-    color: '#fff',
+    color: COLORS.TEXT_PRIMARY,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -235,27 +351,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playerName: {
-    color: '#fff',
+    color: COLORS.TEXT_PRIMARY,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
   },
+  youBadge: {
+    color: COLORS.PRIMARY,
+    fontWeight: '400',
+  },
   points: {
-    color: '#888',
+    color: COLORS.TEXT_SECONDARY,
     fontSize: 14,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: SPACING.LG,
   },
   emptyText: {
-    color: '#fff',
-    fontSize: 18,
-    marginBottom: 8,
+    ...TYPOGRAPHY.H4,
+    marginTop: SPACING.MD,
+    marginBottom: SPACING.XS,
   },
   emptySubtext: {
-    color: '#666',
-    fontSize: 14,
+    ...TYPOGRAPHY.BODY_SMALL,
+    textAlign: 'center',
   },
 });

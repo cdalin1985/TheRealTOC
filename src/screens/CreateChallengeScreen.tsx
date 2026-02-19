@@ -1,19 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   FlatList,
   Alert,
-  ActivityIndicator,
   TextInput,
+  Animated,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
 import { useChallenges } from '../hooks/useChallenges';
+import { Header } from '../components/Header';
+import { AnimatedButton } from '../components/AnimatedButton';
+import { AnimatedCard } from '../components/AnimatedCard';
+import { InlineFeedback } from '../components/FeedbackToast';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
+import { COLORS, TYPOGRAPHY, SPACING, ANIMATION } from '../lib/animations';
 import { DISCIPLINES, MIN_RACE, MAX_RANK_DIFF, type DisciplineId } from '../lib/constants';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -27,6 +34,117 @@ interface EligiblePlayer {
   rank_position: number;
 }
 
+function DisciplineButton({
+  discipline,
+  isSelected,
+  onPress,
+}: {
+  discipline: DisciplineId;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.timing(scale, {
+      toValue: ANIMATION.SCALE.PRESSED,
+      duration: ANIMATION.DURATION.FAST,
+      easing: ANIMATION.EASING.PRESS,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.timing(scale, {
+      toValue: 1,
+      duration: ANIMATION.DURATION.FAST,
+      easing: ANIMATION.EASING.STANDARD,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const getDisciplineIcon = (d: DisciplineId): keyof typeof Ionicons.glyphMap => {
+    switch (d) {
+      case '8-ball':
+        return 'ellipse-outline';
+      case '9-ball':
+        return 'disc-outline';
+      case '10-ball':
+        return 'tennisball-outline';
+      case 'straight-pool':
+        return 'infinite-outline';
+      case 'one-pocket':
+        return 'square-outline';
+      default:
+        return 'help-circle-outline';
+    }
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], flex: 1 }}>
+      <TouchableOpacity
+        style={[
+          styles.disciplineButton,
+          isSelected && styles.disciplineButtonSelected,
+        ]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+      >
+        <Ionicons
+          name={getDisciplineIcon(discipline)}
+          size={20}
+          color={isSelected ? COLORS.TEXT_PRIMARY : COLORS.TEXT_SECONDARY}
+        />
+        <Text
+          style={[
+            styles.disciplineText,
+            isSelected && styles.disciplineTextSelected,
+          ]}
+          numberOfLines={1}
+        >
+          {DISCIPLINES[discipline]}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+function PlayerItem({
+  item,
+  isSelected,
+  onPress,
+  index,
+}: {
+  item: EligiblePlayer;
+  isSelected: boolean;
+  onPress: () => void;
+  index: number;
+}) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+      <AnimatedCard
+        index={index}
+        style={[
+          styles.playerItem,
+          isSelected && styles.playerItemSelected,
+        ]}
+      >
+        <View style={styles.playerRank}>
+          <Text style={styles.playerRankText}>#{item.rank_position}</Text>
+        </View>
+        <Text style={styles.playerName} numberOfLines={1}>
+          {item.display_name}
+        </Text>
+        {isSelected && (
+          <Ionicons name="checkmark-circle" size={24} color={COLORS.SUCCESS} />
+        )}
+      </AnimatedCard>
+    </TouchableOpacity>
+  );
+}
+
 export function CreateChallengeScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { player, rank } = usePlayer(user?.id ?? null);
@@ -38,6 +156,29 @@ export function CreateChallengeScreen({ navigation }: Props) {
   const [raceTo, setRaceTo] = useState(String(MIN_RACE));
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    if (!loading) {
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: ANIMATION.DURATION.SLOW,
+          easing: ANIMATION.EASING.STANDARD,
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentTranslateY, {
+          toValue: 0,
+          duration: ANIMATION.DURATION.ENTRANCE,
+          easing: ANIMATION.EASING.ENTER,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (!player || !rank) {
@@ -84,18 +225,19 @@ export function CreateChallengeScreen({ navigation }: Props) {
     fetchEligiblePlayers();
   }, [player, rank]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!selectedPlayer) {
-      Alert.alert('Error', 'Please select an opponent');
+      setError('Please select an opponent');
       return;
     }
 
     const raceToNum = parseInt(raceTo, 10);
     if (isNaN(raceToNum) || raceToNum < MIN_RACE) {
-      Alert.alert('Error', `Race must be at least ${MIN_RACE}`);
+      setError(`Race must be at least ${MIN_RACE}`);
       return;
     }
 
+    setError(null);
     setSubmitting(true);
     const result = await createChallenge(
       selectedPlayer.player_id,
@@ -109,116 +251,147 @@ export function CreateChallengeScreen({ navigation }: Props) {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } else {
-      Alert.alert('Error', result.error || 'Failed to create challenge');
+      setError(result.error || 'Failed to create challenge');
     }
-  };
+  }, [selectedPlayer, selectedDiscipline, raceTo, createChallenge, navigation]);
 
   if (!rank) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backButton}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>New Challenge</Text>
-          <View style={{ width: 50 }} />
-        </View>
+        <Header title="New Challenge" onBack={() => navigation.goBack()} />
         <View style={styles.centered}>
+          <Ionicons name="trophy-outline" size={48} color={COLORS.TEXT_TERTIARY} />
           <Text style={styles.emptyText}>You must be ranked to create challenges</Text>
         </View>
       </View>
     );
   }
 
-  const renderPlayerItem = ({ item }: { item: EligiblePlayer }) => {
+  const renderPlayerItem = ({ item, index }: { item: EligiblePlayer; index: number }) => {
     const isSelected = selectedPlayer?.player_id === item.player_id;
     return (
-      <TouchableOpacity
-        style={[styles.playerItem, isSelected && styles.playerItemSelected]}
-        onPress={() => setSelectedPlayer(item)}
-      >
-        <View style={styles.playerRank}>
-          <Text style={styles.playerRankText}>#{item.rank_position}</Text>
-        </View>
-        <Text style={styles.playerName}>{item.display_name}</Text>
-        {isSelected && <Text style={styles.checkmark}>✓</Text>}
-      </TouchableOpacity>
+      <PlayerItem
+        item={item}
+        isSelected={isSelected}
+        onPress={() => {
+          setSelectedPlayer(item);
+          setError(null);
+        }}
+        index={index}
+      />
     );
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>New Challenge</Text>
-        <View style={{ width: 50 }} />
-      </View>
+      <Header title="New Challenge" onBack={() => navigation.goBack()} />
 
-      <Text style={styles.sectionTitle}>Your Rank: #{rank.rank_position}</Text>
-      <Text style={styles.hint}>
-        You can challenge players within ±{MAX_RANK_DIFF} ranks
-      </Text>
-
-      <Text style={styles.sectionTitle}>Select Opponent</Text>
-      {loading ? (
-        <ActivityIndicator color="#e94560" style={{ marginVertical: 20 }} />
-      ) : eligiblePlayers.length === 0 ? (
-        <Text style={styles.emptyText}>No eligible opponents found</Text>
-      ) : (
-        <FlatList
-          data={eligiblePlayers}
-          keyExtractor={(item) => item.player_id}
-          renderItem={renderPlayerItem}
-          style={styles.playerList}
-        />
-      )}
-
-      <Text style={styles.sectionTitle}>Discipline</Text>
-      <View style={styles.disciplineRow}>
-        {(Object.keys(DISCIPLINES) as DisciplineId[]).map((d) => (
-          <TouchableOpacity
-            key={d}
-            style={[
-              styles.disciplineButton,
-              selectedDiscipline === d && styles.disciplineButtonSelected,
-            ]}
-            onPress={() => setSelectedDiscipline(d)}
-          >
-            <Text
-              style={[
-                styles.disciplineText,
-                selectedDiscipline === d && styles.disciplineTextSelected,
-              ]}
-            >
-              {DISCIPLINES[d]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Race To</Text>
-      <TextInput
-        style={styles.raceInput}
-        value={raceTo}
-        onChangeText={setRaceTo}
-        keyboardType="number-pad"
-        placeholder={`Minimum ${MIN_RACE}`}
-        placeholderTextColor="#666"
-      />
-
-      <TouchableOpacity
-        style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-        onPress={handleSubmit}
-        disabled={submitting}
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: contentOpacity,
+            transform: [{ translateY: contentTranslateY }],
+          },
+        ]}
       >
-        {submitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitButtonText}>Send Challenge</Text>
+        {/* Rank Info */}
+        <View style={styles.rankInfo}>
+          <View style={styles.rankBadge}>
+            <Ionicons name="trophy" size={20} color={COLORS.PRIMARY} />
+            <Text style={styles.rankText}>Your Rank: #{rank.rank_position}</Text>
+          </View>
+          <Text style={styles.hint}>
+            You can challenge players within ±{MAX_RANK_DIFF} ranks
+          </Text>
+        </View>
+
+        {error && (
+          <InlineFeedback type="error" message={error} style={styles.errorContainer} />
         )}
-      </TouchableOpacity>
+
+        {/* Player Selection */}
+        <Text style={styles.sectionTitle}>Select Opponent</Text>
+
+        {loading ? (
+          <LoadingSkeleton count={3} />
+        ) : eligiblePlayers.length === 0 ? (
+          <View style={styles.emptyPlayers}>
+            <Ionicons name="people-outline" size={32} color={COLORS.TEXT_TERTIARY} />
+            <Text style={styles.emptyText}>No eligible opponents found</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={eligiblePlayers}
+            keyExtractor={(item) => item.player_id}
+            renderItem={renderPlayerItem}
+            style={styles.playerList}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+        {/* Discipline Selection */}
+        <Text style={styles.sectionTitle}>Select Discipline</Text>
+        <View style={styles.disciplineRow}>
+          {(Object.keys(DISCIPLINES) as DisciplineId[]).map((d) => (
+            <DisciplineButton
+              key={d}
+              discipline={d}
+              isSelected={selectedDiscipline === d}
+              onPress={() => setSelectedDiscipline(d)}
+            />
+          ))}
+        </View>
+
+        {/* Race Selection */}
+        <Text style={styles.sectionTitle}>Race To</Text>
+        <View style={styles.raceContainer}>
+          <TouchableOpacity
+            style={styles.raceButton}
+            onPress={() => {
+              const current = parseInt(raceTo, 10) || MIN_RACE;
+              if (current > MIN_RACE) {
+                setRaceTo(String(current - 1));
+              }
+            }}
+          >
+            <Ionicons name="remove" size={20} color={COLORS.TEXT_PRIMARY} />
+          </TouchableOpacity>
+
+          <TextInput
+            style={styles.raceInput}
+            value={raceTo}
+            onChangeText={setRaceTo}
+            keyboardType="number-pad"
+            placeholder={`Min ${MIN_RACE}`}
+            placeholderTextColor={COLORS.TEXT_TERTIARY}
+            maxLength={2}
+          />
+
+          <TouchableOpacity
+            style={styles.raceButton}
+            onPress={() => {
+              const current = parseInt(raceTo, 10) || MIN_RACE;
+              setRaceTo(String(current + 1));
+            }}
+          >
+            <Ionicons name="add" size={20} color={COLORS.TEXT_PRIMARY} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.raceHint}>Minimum race: {MIN_RACE} games</Text>
+
+        {/* Submit Button */}
+        <AnimatedButton
+          onPress={handleSubmit}
+          loading={submitting}
+          disabled={submitting || !selectedPlayer}
+          size="large"
+          style={styles.submitButton}
+        >
+          Send Challenge
+        </AnimatedButton>
+      </Animated.View>
     </View>
   );
 }
@@ -226,127 +399,135 @@ export function CreateChallengeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: COLORS.BACKGROUND,
   },
-  header: {
+  content: {
+    flex: 1,
+    paddingHorizontal: SPACING.MD,
+  },
+  rankInfo: {
+    marginBottom: SPACING.MD,
+  },
+  rankBadge: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    backgroundColor: COLORS.SURFACE,
+    padding: SPACING.MD,
+    borderRadius: 12,
+    gap: SPACING.SM,
+    marginBottom: SPACING.XS,
   },
-  backButton: {
-    color: '#e94560',
-    fontSize: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 16,
+  rankText: {
+    ...TYPOGRAPHY.BODY,
     fontWeight: '600',
-    paddingHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 8,
   },
   hint: {
-    color: '#666',
-    fontSize: 12,
-    paddingHorizontal: 20,
-    marginBottom: 8,
+    ...TYPOGRAPHY.CAPTION,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    marginBottom: SPACING.MD,
+  },
+  sectionTitle: {
+    ...TYPOGRAPHY.H4,
+    marginTop: SPACING.MD,
+    marginBottom: SPACING.SM,
+  },
+  emptyPlayers: {
+    alignItems: 'center',
+    padding: SPACING.XL,
   },
   playerList: {
     maxHeight: 200,
-    marginHorizontal: 16,
   },
   playerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    padding: SPACING.MD,
   },
   playerItemSelected: {
-    backgroundColor: '#e94560',
+    borderWidth: 2,
+    borderColor: COLORS.PRIMARY,
   },
   playerRank: {
     width: 40,
-    marginRight: 12,
+    marginRight: SPACING.MD,
   },
   playerRankText: {
-    color: '#888',
+    color: COLORS.TEXT_SECONDARY,
     fontSize: 14,
   },
   playerName: {
     flex: 1,
-    color: '#fff',
+    color: COLORS.TEXT_PRIMARY,
     fontSize: 16,
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 18,
   },
   disciplineRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 8,
+    gap: SPACING.SM,
+    marginBottom: SPACING.MD,
   },
   disciplineButton: {
     flex: 1,
-    paddingVertical: 12,
-    backgroundColor: '#16213e',
-    borderRadius: 8,
+    paddingVertical: SPACING.MD,
+    backgroundColor: COLORS.SURFACE,
+    borderRadius: 12,
     alignItems: 'center',
+    gap: 4,
   },
   disciplineButtonSelected: {
-    backgroundColor: '#e94560',
+    backgroundColor: COLORS.PRIMARY,
   },
   disciplineText: {
-    color: '#888',
-    fontSize: 14,
+    color: COLORS.TEXT_SECONDARY,
+    fontSize: 12,
+    fontWeight: '500',
   },
   disciplineTextSelected: {
-    color: '#fff',
+    color: COLORS.TEXT_PRIMARY,
   },
-  raceInput: {
-    backgroundColor: '#16213e',
-    marginHorizontal: 16,
-    borderRadius: 8,
-    padding: 16,
-    color: '#fff',
-    fontSize: 16,
+  raceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.MD,
+    marginBottom: SPACING.XS,
   },
-  submitButton: {
-    backgroundColor: '#e94560',
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 40,
-    padding: 16,
-    borderRadius: 8,
+  raceButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: COLORS.SURFACE,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 18,
+  raceInput: {
+    width: 80,
+    height: 56,
+    backgroundColor: COLORS.SURFACE,
+    borderRadius: 12,
+    color: COLORS.TEXT_PRIMARY,
+    fontSize: 24,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  raceHint: {
+    ...TYPOGRAPHY.CAPTION,
+    textAlign: 'center',
+    marginBottom: SPACING.LG,
+  },
+  submitButton: {
+    marginBottom: SPACING.XL,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: SPACING.LG,
   },
   emptyText: {
-    color: '#666',
-    fontSize: 14,
+    ...TYPOGRAPHY.BODY_SMALL,
+    marginTop: SPACING.MD,
     textAlign: 'center',
-    paddingHorizontal: 20,
   },
 });
