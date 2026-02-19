@@ -127,6 +127,13 @@ export function StandingsScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity
+        style={styles.treasuryButton}
+        onPress={() => navigation.navigate('Treasury')}
+      >
+        <Text style={styles.treasuryButtonText}>💰 View League Treasury</Text>
+      </TouchableOpacity>
+
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#e94560" />
@@ -257,5 +264,18 @@ const styles = StyleSheet.create({
   emptySubtext: {
     color: '#666',
     fontSize: 14,
+  },
+  treasuryButton: {
+    backgroundColor: '#2ecc71',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  treasuryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
