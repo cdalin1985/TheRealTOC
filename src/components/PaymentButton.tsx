@@ -49,7 +49,7 @@ export function PaymentButton({
     setProcessing(method);
     
     const config = getDefaultMatchFeeConfig(method, description, recipientOverrides);
-    config.amount = amount; // Override with actual amount
+    config.amount = amount;
     
     const result = await openPaymentApp(config);
     
@@ -59,7 +59,6 @@ export function PaymentButton({
     if (result.success) {
       onPaymentComplete?.();
     } else if (result.fallbackUrl) {
-      // Show alert with fallback option
       Alert.alert(
         'App Not Installed',
         result.error,
@@ -74,7 +73,6 @@ export function PaymentButton({
           {
             text: 'Copy Instructions',
             onPress: () => {
-              // In a real app, use Clipboard API
               Alert.alert('Instructions', getPaymentInstructions(method, config.recipientUsername, amount));
             },
           },
@@ -82,7 +80,6 @@ export function PaymentButton({
         ]
       );
     } else if (method === 'zelle') {
-      // Zelle always shows instructions
       Alert.alert(
         'Zelle Payment',
         getPaymentInstructions(method, config.recipientUsername, amount),
@@ -119,7 +116,7 @@ export function PaymentButton({
   };
 
   return (
-    <>
+    <React.Fragment>
       <TouchableOpacity
         style={[styles.button, getButtonStyles(), disabled && styles.buttonDisabled]}
         onPress={() => setModalVisible(true)}
@@ -139,9 +136,7 @@ export function PaymentButton({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Payment Method</Text>
-            <Text style={styles.modalSubtitle}>
-              {description}
-            </Text>
+            <Text style={styles.modalSubtitle}>{description}</Text>
             <Text style={styles.modalAmount}>{formatCurrency(amount * 100)}</Text>
 
             <View style={styles.methodsContainer}>
@@ -155,10 +150,10 @@ export function PaymentButton({
                   {processing === method ? (
                     <ActivityIndicator size="small" color={color} />
                   ) : (
-                    <>
+                    <React.Fragment>
                       <Text style={styles.methodIcon}>{icon}</Text>
-                      <Text style={[styles.methodLabel, { color }]>{label}</Text>
-                    </>
+                      <Text style={[styles.methodLabel, { color }]}>{label}</Text>
+                    </React.Fragment>
                   )}
                 </TouchableOpacity>
               ))}
@@ -173,7 +168,7 @@ export function PaymentButton({
           </View>
         </View>
       </Modal>
-    </>
+    </React.Fragment>
   );
 }
 
