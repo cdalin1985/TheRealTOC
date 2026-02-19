@@ -1,30 +1,79 @@
 {
   "expo": {
-    "name": "toc",
-    "slug": "toc",
+    "name": "TheRealTOC",
+    "slug": "therealtoc",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#1a1a2e",
+    "primaryColor": "#e94560",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a1a2e"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.therealtoc.app",
+      "buildNumber": "1.0.0.1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [],
+        "UIViewControllerBasedStatusBarAppearance": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "icon": {
+        "dark": "./assets/ios-icon-dark.png",
+        "light": "./assets/icon.png",
+        "tinted": "./assets/ios-icon-tinted.png"
+      }
     },
     "android": {
+      "package": "com.therealtoc.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundImage": "./assets/adaptive-icon-bg.png",
+        "monochromeImage": "./assets/adaptive-icon-mono.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.INTERNET"
+      ],
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#1a1a2e"
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "therealtoc-project-id"
+      }
+    },
+    "owner": "therealtoc",
+    "updates": {
+      "url": "https://u.expo.dev/therealtoc-project-id",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "jsEngine": "hermes"
   }
 }

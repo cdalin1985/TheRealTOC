@@ -18,6 +18,7 @@ export type ActivityType =
   | 'match_confirmed'
   | 'match_completed'
   | 'score_submitted'
+  | 'score_disputed'
   | 'ranking_changed'
   | 'player_joined'
   | 'payment_received';
@@ -62,6 +63,12 @@ export interface ActivityItem {
   // Joined fields
   actor_name?: string;
   target_name?: string;
+  // Additional metadata for rich display
+  race_to?: number;
+  discipline_id?: string;
+  challenger_games?: number;
+  challenged_games?: number;
+  venue_name?: string;
 }
 
 export interface TreasuryStats {
