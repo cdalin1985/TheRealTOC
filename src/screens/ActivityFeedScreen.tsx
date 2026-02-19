@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -13,9 +12,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayer } from '../hooks/usePlayer';
 import { useFilteredActivityFeed } from '../hooks/useActivityFeed';
+import { AnimatedButton } from '../components/AnimatedButton';
+import { AnimatedCard } from '../components/AnimatedCard';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
+import { FeedbackToast } from '../components/FeedbackToast';
 import type { RootStackParamList } from '../types/navigation';
 import type { ActivityItem, ActivityType } from '../types/treasury';
 import { DISCIPLINES, type DisciplineId } from '../lib/constants';
+import { COLORS, TYPOGRAPHY } from '../lib/animations';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ActivityFeed'>;
@@ -26,7 +30,7 @@ type FilterTab = 'all' | 'matches' | 'challenges' | 'rankings';
 interface FilterConfig {
   key: FilterTab;
   label: string;
-  types: ActivityType[] | null; // null means all types
+  types: ActivityType[] | null;
 }
 
 const FILTERS: FilterConfig[] = [
@@ -55,22 +59,18 @@ function formatTimestamp(timestamp: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   
-  // Today: show time only
   if (diffDays === 0) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   
-  // Yesterday
   if (diffDays === 1) {
     return `Yesterday ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
   
-  // Within last 7 days: show day name
   if (diffDays < 7) {
     return date.toLocaleDateString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   }
   
-  // Older: show date
   return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
@@ -166,7 +166,7 @@ function getActivityText(activity: ActivityItem): { main: string; sub?: string }
   }
 }
 
-// Check if activity is "important" (for subtle highlighting)
+// Check if activity is "important"
 function isImportantActivity(activity: ActivityItem): boolean {
   return [
     'match_completed',
@@ -175,17 +175,22 @@ function isImportantActivity(activity: ActivityItem): boolean {
   ].includes(activity.type);
 }
 
-// Activity message component - chat bubble style
-function ActivityMessage({ activity, isCurrentUser }: { activity: ActivityItem; isCurrentUser: boolean }) {
+// Activity message component - chat bubble style with animation
+function ActivityMessage({ activity, index }: { activity: ActivityItem; index: number }) {
   const { main, sub } = getActivityText(activity);
   const isImportant = isImportantActivity(activity);
   
   return (
-    <View style={[styles.messageContainer, isImportant && styles.importantMessage]}>
+    <AnimatedCard 
+      style={[
+        styles.messageContainer, 
+        isImportant && styles.importantMessage
+      ]}
+      index={index}
+    >
       <View style={styles.messageContent}>
         <Text style={styles.messageText}>
           {main.split(/(\w+)/).map((part, i) => {
-            // Highlight player names (simple heuristic: capitalized words that look like names)
             const isName = part === activity.actor_name || part === activity.target_name;
             return isName ? (
               <Text key={i} style={styles.nameHighlight}>{part}</Text>
@@ -197,7 +202,7 @@ function ActivityMessage({ activity, isCurrentUser }: { activity: ActivityItem; 
         {sub && <Text style={styles.subText}>{sub}</Text>}
       </View>
       <Text style={styles.timestamp}>{formatTimestamp(activity.created_at)}</Text>
-    </View>
+    </AnimatedCard>
   );
 }
 
@@ -206,7 +211,10 @@ function DateSeparator({ date }: { date: string }) {
   const dateObj = new Date(date);
   const now = new Date();
   const isToday = dateObj.toDateString() === now.toDateString();
-  const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === dateObj.toDateString();
+  
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = yesterday.toDateString() === dateObj.toDateString();
   
   let label = dateObj.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   if (isToday) label = 'Today';
@@ -225,6 +233,8 @@ export function ActivityFeedScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { player } = usePlayer(user?.id ?? null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   
   const currentFilter = FILTERS.find(f => f.key === activeFilter)!;
   
@@ -239,9 +249,16 @@ export function ActivityFeedScreen({ navigation }: Props) {
     loadMore,
   } = useFilteredActivityFeed({
     playerId: player?.id ?? null,
-    typeFilter: currentFilter.types ? null : null, // We'll filter client-side for smoother UX
     pageSize: 50,
   });
+
+  // Show error toast
+  React.useEffect(() => {
+    if (error) {
+      setToastMessage(error);
+      setToastVisible(true);
+    }
+  }, [error]);
 
   // Client-side filtering
   const filteredActivities = currentFilter.types
@@ -254,49 +271,60 @@ export function ActivityFeedScreen({ navigation }: Props) {
       new Date(item.created_at).toDateString() !== 
       new Date(filteredActivities[index - 1]?.created_at).toDateString();
     
-    const isCurrentUser = item.actor_player_id === player?.id;
-    
     return (
       <>
         {showDateSeparator && <DateSeparator date={item.created_at} />}
-        <ActivityMessage activity={item} isCurrentUser={isCurrentUser} />
+        <ActivityMessage activity={item} index={index} />
       </>
     );
-  }, [filteredActivities, player?.id]);
+  }, [filteredActivities]);
 
   const renderFilterTab = (filter: FilterConfig) => (
-    <TouchableOpacity
+    <AnimatedButton
       key={filter.key}
-      style={[styles.filterTab, activeFilter === filter.key && styles.filterTabActive]}
+      variant={activeFilter === filter.key ? 'primary' : 'secondary'}
+      size="small"
       onPress={() => setActiveFilter(filter.key)}
+      style={styles.filterTab}
     >
-      <Text style={[styles.filterTabText, activeFilter === filter.key && styles.filterTabTextActive]}>
-        {filter.label}
-      </Text>
-    </TouchableOpacity>
+      {filter.label}
+    </AnimatedButton>
   );
 
   const renderFooter = () => {
     if (!hasMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#e94560" />
+        <ActivityIndicator size="small" color={COLORS.PRIMARY} />
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
+      {/* Error Toast */}
+      <FeedbackToast
+        visible={toastVisible}
+        type="error"
+        message={toastMessage}
+        onHide={() => setToastVisible(false)}
+      />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
+        <AnimatedButton
+          variant="ghost"
+          size="small"
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          ← Back
+        </AnimatedButton>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Activity</Text>
           {isOffline && <Text style={styles.offlineIndicator}>Offline</Text>}
         </View>
-        <View style={{ width: 50 }} />
+        <View style={{ width: 60 }} />
       </View>
 
       {/* Filter Tabs */}
@@ -308,15 +336,17 @@ export function ActivityFeedScreen({ navigation }: Props) {
 
       {/* Activity List */}
       {loading && !refreshing && activities.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#e94560" />
-        </View>
+        <LoadingSkeleton count={5} />
       ) : error && activities.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={refresh}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          <AnimatedButton
+            variant="primary"
+            onPress={refresh}
+            style={styles.retryButton}
+          >
+            Retry
+          </AnimatedButton>
         </View>
       ) : filteredActivities.length === 0 ? (
         <View style={styles.centered}>
@@ -333,8 +363,8 @@ export function ActivityFeedScreen({ navigation }: Props) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={refresh}
-              tintColor="#e94560"
-              colors={['#e94560']}
+              tintColor={COLORS.PRIMARY}
+              colors={[COLORS.PRIMARY]}
             />
           }
           onEndReached={loadMore}
@@ -343,7 +373,6 @@ export function ActivityFeedScreen({ navigation }: Props) {
           maintainVisibleContentPosition={{
             minIndexForVisible: 0,
           }}
-          inverted={false}
         />
       )}
     </View>
@@ -355,7 +384,7 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: COLORS.BACKGROUND,
   },
   header: {
     flexDirection: 'row',
@@ -364,33 +393,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 12,
-    backgroundColor: '#16213e',
+    backgroundColor: COLORS.SURFACE,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a4e',
+    borderBottomColor: COLORS.BORDER,
   },
   backButton: {
-    color: '#e94560',
-    fontSize: 16,
-    width: 50,
+    width: 60,
   },
   headerCenter: {
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
+    ...TYPOGRAPHY.H4,
   },
   offlineIndicator: {
     fontSize: 11,
-    color: '#f1c40f',
+    color: COLORS.WARNING,
     marginTop: 2,
   },
   filterContainer: {
-    backgroundColor: '#16213e',
+    backgroundColor: COLORS.SURFACE,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a4e',
+    borderBottomColor: COLORS.BORDER,
   },
   filterRow: {
     flexDirection: 'row',
@@ -398,59 +423,42 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#1a1a2e',
-  },
-  filterTabActive: {
-    backgroundColor: '#e94560',
-  },
-  filterTabText: {
-    color: '#888',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterTabTextActive: {
-    color: '#fff',
-    fontWeight: '600',
   },
   listContent: {
     paddingVertical: 8,
   },
   // Chat-style message styling
   messageContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginVertical: 2,
+    marginHorizontal: 16,
+    marginVertical: 4,
+    padding: 0,
+    backgroundColor: 'transparent',
   },
   importantMessage: {
     backgroundColor: 'rgba(233, 69, 96, 0.08)',
   },
   messageContent: {
-    backgroundColor: '#16213e',
+    backgroundColor: COLORS.SURFACE,
     borderRadius: 12,
     padding: 12,
     maxWidth: width * 0.85,
   },
   messageText: {
-    color: '#fff',
-    fontSize: 15,
+    ...TYPOGRAPHY.BODY,
     lineHeight: 20,
   },
   nameHighlight: {
-    color: '#e94560',
+    color: COLORS.PRIMARY,
     fontWeight: '600',
   },
   subText: {
-    color: '#888',
-    fontSize: 13,
+    ...TYPOGRAPHY.BODY_SMALL,
     marginTop: 4,
     lineHeight: 18,
   },
   timestamp: {
-    color: '#666',
-    fontSize: 11,
+    ...TYPOGRAPHY.CAPTION,
     marginTop: 4,
     marginLeft: 4,
   },
@@ -464,11 +472,10 @@ const styles = StyleSheet.create({
   dateLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2a2a4e',
+    backgroundColor: COLORS.BORDER,
   },
   dateText: {
-    color: '#666',
-    fontSize: 12,
+    ...TYPOGRAPHY.CAPTION,
     marginHorizontal: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -481,30 +488,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   errorText: {
-    color: '#e74c3c',
-    fontSize: 16,
+    color: COLORS.ERROR,
+    ...TYPOGRAPHY.BODY,
     textAlign: 'center',
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#e94560',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    minWidth: 120,
   },
   emptyText: {
-    color: '#888',
-    fontSize: 18,
-    fontWeight: '600',
+    ...TYPOGRAPHY.H4,
   },
   emptySubtext: {
-    color: '#666',
-    fontSize: 14,
+    ...TYPOGRAPHY.BODY_SMALL,
     marginTop: 8,
   },
   footerLoader: {
