@@ -15,6 +15,9 @@ import { useAuth } from '../hooks/useAuth';
 import { formatCurrency } from '../lib/formatters';
 import { PaymentButton } from '../components/PaymentButton';
 import { PlayerPaymentHistory } from '../components/PlayerPaymentHistory';
+import { AnimatedCard } from '../components/AnimatedCard';
+import { AnimatedButton } from '../components/AnimatedButton';
+import { COLORS } from '../lib/animations';
 import type { RootStackParamList } from '../types/navigation';
 import type { Transaction, PlayerFinancialSummary, TransactionCategory } from '../types/treasury';
 
@@ -36,7 +39,7 @@ function BalanceCard({ stats }: { stats: { currentBalance: number; totalIncome: 
   if (!stats) return null;
   
   return (
-    <View style={styles.balanceCard}>
+    <AnimatedCard style={styles.balanceCard}>
       <Text style={styles.balanceLabel}>League Treasury</Text>
       <Text style={styles.balanceAmount}>{formatCurrency(stats.currentBalance)}</Text>
       <Text style={styles.balanceSubtext}>Current Balance</Text>
@@ -55,7 +58,7 @@ function BalanceCard({ stats }: { stats: { currentBalance: number; totalIncome: 
           <Text style={[styles.statValue, stats.net >= 0 ? styles.incomeText : styles.expenseText]}>{stats.net >= 0 ? '+' : ''}{formatCurrency(stats.net)}</Text>
         </View>
       </View>
-    </View>
+    </AnimatedCard>
   );
 }
 
@@ -169,12 +172,13 @@ export function TreasuryScreen({ navigation }: Props) {
           
           {/* Admin Access Button */}
           {isAdmin && (
-            <TouchableOpacity
-              style={styles.adminButton}
+            <AnimatedButton
+              variant="secondary"
               onPress={() => navigation.navigate('AdminTreasury')}
+              style={styles.adminButton}
             >
-              <Text style={styles.adminButtonText}>🔒 Admin Treasury</Text>
-            </TouchableOpacity>
+              🔒 Admin Treasury
+            </AnimatedButton>
           )}
           
           <View style={styles.section}>
@@ -300,14 +304,14 @@ export function TreasuryScreen({ navigation }: Props) {
 
       {loading && !transactions.length ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#e94560" />
+          <ActivityIndicator size="large" color={COLORS.PRIMARY} />
         </View>
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={refresh}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+          <AnimatedButton variant="primary" onPress={refresh}>
+            Retry
+          </AnimatedButton>
         </View>
       ) : (
         renderContent()

@@ -15,6 +15,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTreasury, useAllPlayerFinancials } from '../hooks/useTreasury';
 import { useAuth } from '../hooks/useAuth';
 import { formatCurrency } from '../lib/formatters';
+import { AnimatedCard } from '../components/AnimatedCard';
+import { AnimatedButton } from '../components/AnimatedButton';
+import { COLORS } from '../lib/animations';
 import type { RootStackParamList } from '../types/navigation';
 import type { TransactionCategory } from '../types/treasury';
 
@@ -123,24 +126,23 @@ function ExpenseModal({
           />
 
           <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonSecondary]}
+            <AnimatedButton
+              variant="ghost"
               onPress={onClose}
               disabled={loading}
+              style={styles.modalButton}
             >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonPrimary]}
+              Cancel
+            </AnimatedButton>
+            <AnimatedButton
+              variant="primary"
               onPress={handleSubmit}
+              loading={loading}
               disabled={loading}
+              style={styles.modalButton}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.modalButtonText}>Add Expense</Text>
-              )}
-            </TouchableOpacity>
+              Add Expense
+            </AnimatedButton>
           </View>
         </View>
       </View>
@@ -202,18 +204,20 @@ function MatchFeeConfigModal({
           </Text>
 
           <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonSecondary]}
+            <AnimatedButton
+              variant="ghost"
               onPress={onClose}
+              style={styles.modalButton}
             >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonPrimary]}
+              Cancel
+            </AnimatedButton>
+            <AnimatedButton
+              variant="primary"
               onPress={handleSave}
+              style={styles.modalButton}
             >
-              <Text style={styles.modalButtonText}>Save</Text>
-            </TouchableOpacity>
+              Save
+            </AnimatedButton>
           </View>
         </View>
       </View>
@@ -432,14 +436,14 @@ export function AdminTreasuryScreen({ navigation }: Props) {
 
       {loading && !transactions.length ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#e94560" />
+          <ActivityIndicator size="large" color={COLORS.PRIMARY} />
         </View>
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={refresh}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+          <AnimatedButton variant="primary" onPress={refresh}>
+            Retry
+          </AnimatedButton>
         </View>
       ) : activeTab === 'overview' ? (
         renderOverviewTab()
