@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { 
   Transaction, 
   PlayerFinancialSummary, 
   TreasuryStats,
   CategoryBreakdown 
 } from '../types/treasury';
+
+// Cache implementation with AsyncStorage (optional)
+let AsyncStorage: any = null;
+try {
+  AsyncStorage = require('@react-native-async-storage/async-storage').default;
+} catch {
+  console.log('AsyncStorage not available - offline caching disabled');
+}
 
 // Cache keys
 const CACHE_KEYS = {
@@ -25,6 +32,8 @@ interface CacheEntry<T> {
 }
 
 async function getCachedData<T>(key: string): Promise<T | null> {
+  if (!AsyncStorage) return null;
+  
   try {
     const cached = await AsyncStorage.getItem(key);
     if (!cached) return null;
@@ -44,6 +53,8 @@ async function getCachedData<T>(key: string): Promise<T | null> {
 }
 
 async function setCachedData<T>(key: string, data: T): Promise<void> {
+  if (!AsyncStorage) return;
+  
   try {
     const entry: CacheEntry<T> = { data, timestamp: Date.now() };
     await AsyncStorage.setItem(key, JSON.stringify(entry));
