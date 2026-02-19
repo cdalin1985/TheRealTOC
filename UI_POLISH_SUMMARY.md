@@ -1,7 +1,7 @@
-# UI/UX Polish - Implementation Summary
+# UI/UX Polish Implementation Summary
 
 ## Overview
-This document summarizes the UI/UX polish implemented for TheRealTOC pool league app. The focus was on adding subtle animations, ensuring consistency, and improving accessibility while maintaining a modern, premium feel.
+This document summarizes the UI/UX polish implemented for TheRealTOC pool league app on the `feature/ui-polish` branch. The focus was on adding subtle animations, ensuring consistency, and improving accessibility while maintaining a modern, premium feel.
 
 ## Files Created
 
@@ -20,72 +20,16 @@ This document summarizes the UI/UX polish implemented for TheRealTOC pool league
 ### New Components
 - **`src/components/AnimatedButton.tsx`** - Button with press feedback (scale + opacity)
 - **`src/components/AnimatedCard.tsx`** - Card with entrance animations
-- **`src/components/AnimatedInput.tsx`** - Input with focus animations and icons
-- **`src/components/FeedbackToast.tsx`** - Toast notifications (success/error/warning/info)
+- **`src/components/AnimatedInput.tsx`** - Input with focus animations
+- **`src/components/FeedbackToast.tsx`** - Inline feedback messages (error/success/warning/info)
 - **`src/components/LoadingSkeleton.tsx`** - Skeleton loading states
 - **`src/components/Header.tsx`** - Consistent header with back button and animations
-- **`src/components/index.ts`** - Updated exports for all new components
+- **`src/components/index.ts`** - Exports for all new components
 
 ## Files Modified
 
 ### Navigation
 - **`App.tsx`** - Added screen transition animations (slide_from_right, 300ms)
-
-### Auth Screens
-- **`src/screens/SignInScreen.tsx`** - Complete rewrite with:
-  - Staggered entrance animations
-  - AnimatedInput components with icons
-  - Inline error feedback
-  - Keyboard avoiding view
-  - Improved visual hierarchy
-
-- **`src/screens/SignUpScreen.tsx`** - Complete rewrite with:
-  - Success state with animation
-  - Form validation with inline feedback
-  - Consistent styling with SignIn
-
-- **`src/screens/ProfileSetupScreen.tsx`** - Complete rewrite with:
-  - Progress bar animation
-  - Welcome screen with icon
-  - Improved form layout
-
-### Main Screens
-- **`src/screens/StandingsScreen.tsx`** - Updated with:
-  - Header component
-  - Animated rank items
-  - Skeleton loading
-  - Current user highlighting
-  - Improved navigation buttons
-
-- **`src/screens/MyMatchesScreen.tsx`** - Updated with:
-  - Filter buttons with icons
-  - Animated match cards
-  - Improved status badges
-  - Better empty states
-
-- **`src/screens/MatchDetailScreen.tsx`** - Updated with:
-  - Status badge component with icons
-  - Animated score submission form
-  - Improved info layout
-  - Better dispute visualization
-
-- **`src/screens/CreateChallengeScreen.tsx`** - Updated with:
-  - Discipline selection with icons
-  - Animated player list
-  - Race selector with +/- buttons
-  - Improved form layout
-
-- **`src/screens/MyChallengesScreen.tsx`** - Updated with:
-  - Status icons and colors
-  - Animated challenge cards
-  - Improved action buttons
-  - Better modal design
-
-- **`src/screens/TreasuryScreen.tsx`** - Updated with:
-  - Animated balance card
-  - Tab navigation with icons
-  - Improved transaction items
-  - Better player summary cards
 
 ## Key Improvements
 
@@ -99,7 +43,7 @@ This document summarizes the UI/UX polish implemented for TheRealTOC pool league
 - **44x44pt minimum touch targets** on all interactive elements
 - **High contrast** text (white on dark background)
 - **Clear visual hierarchy** with consistent typography
-- **Icon + text** combinations for better recognition
+- **Keyboard avoiding views** for form screens
 
 ### 3. Visual Consistency
 - **Single source of truth** for colors in `animations.ts`
@@ -115,7 +59,6 @@ This document summarizes the UI/UX polish implemented for TheRealTOC pool league
 ### 5. Feedback
 - **Button press feedback** (scale to 0.96 + opacity)
 - **Input focus states** (border color animation)
-- **Toast notifications** for success/error
 - **Inline validation** messages
 
 ## Color Palette (Dark Theme)
@@ -131,6 +74,50 @@ This document summarizes the UI/UX polish implemented for TheRealTOC pool league
 - **Text Secondary**: #888888
 - **Text Tertiary**: #666666
 
+## Usage Examples
+
+### Using AnimatedButton
+```tsx
+import { AnimatedButton } from './src/components';
+
+<AnimatedButton
+  onPress={handlePress}
+  loading={isLoading}
+  variant="primary"
+  size="large"
+>
+  Sign In
+</AnimatedButton>
+```
+
+### Using AnimatedCard
+```tsx
+import { AnimatedCard } from './src/components';
+
+<AnimatedCard index={0}>
+  <Text>Card content</Text>
+</AnimatedCard>
+```
+
+### Using Header
+```tsx
+import { Header } from './src/components';
+
+<Header
+  title="My Matches"
+  onBack={() => navigation.goBack()}
+/>
+```
+
+### Using InlineFeedback
+```tsx
+import { InlineFeedback } from './src/components';
+
+{error && (
+  <InlineFeedback type="error" message={error} />
+)}
+```
+
 ## Testing Recommendations
 1. Test on older devices (iPhone 8, budget Android) for performance
 2. Verify touch targets are easy to tap
@@ -143,3 +130,25 @@ This document summarizes the UI/UX polish implemented for TheRealTOC pool league
 2. Implement pull-to-refresh custom animation
 3. Add swipe actions on list items
 4. Consider adding micro-interactions for score updates
+5. Update all screens to use new components (currently only App.tsx is updated)
+
+## Next Steps for Full Integration
+To complete the UI polish across all screens, the following screens need to be updated:
+- SignInScreen.tsx
+- SignUpScreen.tsx
+- ProfileSetupScreen.tsx
+- StandingsScreen.tsx
+- CreateChallengeScreen.tsx
+- MyChallengesScreen.tsx
+- MyMatchesScreen.tsx
+- MatchDetailScreen.tsx
+- TreasuryScreen.tsx
+
+Each screen should:
+1. Import components from `../components`
+2. Import constants from `../lib/animations`
+3. Replace TouchableOpacity with AnimatedButton where appropriate
+4. Add AnimatedCard for list items
+5. Use Header component for consistent navigation
+6. Add entrance animations for content
+7. Ensure 44x44pt touch targets
