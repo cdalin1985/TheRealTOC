@@ -1,6 +1,3 @@
-module.exports = function(api) {
-  api.cache(true);
-  return {
-    presets: ['module:babel-preset-expo'],
-  };
+module.exports = {
+  presets: ['module:@react-native/babel-preset'],
 };
