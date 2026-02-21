@@ -32,8 +32,19 @@ export function AnimatedButton({
   onPressOut,
   ...props
 }: AnimatedButtonProps) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  // Lazy initialization for React 19 compatibility
+  const scaleRef = useRef<Animated.Value | null>(null);
+  const opacityRef = useRef<Animated.Value | null>(null);
+  
+  if (!scaleRef.current) {
+    scaleRef.current = new Animated.Value(1);
+  }
+  if (!opacityRef.current) {
+    opacityRef.current = new Animated.Value(1);
+  }
+  
+  const scale = scaleRef.current;
+  const opacity = opacityRef.current;
 
   const handlePressIn = useCallback((e: any) => {
     Animated.parallel([

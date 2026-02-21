@@ -27,9 +27,25 @@ export function AnimatedInput({
   onBlur,
   ...props
 }: AnimatedInputProps) {
-  const borderColor = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(10)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  // Lazy initialization for React 19 compatibility
+  const borderColorRef = useRef<Animated.Value | null>(null);
+  const translateYRef = useRef<Animated.Value | null>(null);
+  const opacityRef = useRef<Animated.Value | null>(null);
+  
+  if (!borderColorRef.current) {
+    borderColorRef.current = new Animated.Value(0);
+  }
+  if (!translateYRef.current) {
+    translateYRef.current = new Animated.Value(10);
+  }
+  if (!opacityRef.current) {
+    opacityRef.current = new Animated.Value(0);
+  }
+  
+  const borderColor = borderColorRef.current;
+  const translateY = translateYRef.current;
+  const opacity = opacityRef.current;
+  
   const [isFocused, setIsFocused] = React.useState(false);
 
   useEffect(() => {

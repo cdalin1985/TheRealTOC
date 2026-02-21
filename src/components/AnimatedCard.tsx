@@ -20,9 +20,24 @@ export function AnimatedCard({
   index = 0,
   delay = 0,
 }: AnimatedCardProps) {
-  const translateY = useRef(new Animated.Value(20)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.95)).current;
+  // Lazy initialization for React 19 compatibility
+  const translateYRef = useRef<Animated.Value | null>(null);
+  const opacityRef = useRef<Animated.Value | null>(null);
+  const scaleRef = useRef<Animated.Value | null>(null);
+  
+  if (!translateYRef.current) {
+    translateYRef.current = new Animated.Value(20);
+  }
+  if (!opacityRef.current) {
+    opacityRef.current = new Animated.Value(0);
+  }
+  if (!scaleRef.current) {
+    scaleRef.current = new Animated.Value(0.95);
+  }
+  
+  const translateY = translateYRef.current;
+  const opacity = opacityRef.current;
+  const scale = scaleRef.current;
 
   useEffect(() => {
     const itemDelay = Math.min(index * 50 + delay, 400);
