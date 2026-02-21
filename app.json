@@ -54,10 +54,6 @@
         "backgroundColor": "#1a1a2e"
       }
     },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    },
     "plugins": [],
     "extra": {
       "eas": {
