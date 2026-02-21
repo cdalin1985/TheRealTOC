@@ -1,27 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import {
-  SignInScreen,
-  SignUpScreen,
-  ProfileSetupScreen,
-  StandingsScreen,
-  CreateChallengeScreen,
-  MyChallengesScreen,
-  MyMatchesScreen,
-  MatchDetailScreen,
-  TreasuryScreen,
-  AdminTreasuryScreen,
-} from './src/screens';
 import { useAuth } from './src/hooks/useAuth';
-import type { RootStackParamList } from './src/types/navigation';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator();
+
+function TestScreen() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text>Test Screen - Auth Works!</Text>
+    </View>
+  );
+}
 
 function Navigation() {
-  const { session, loading, needsProfileSetup } = useAuth();
+  const { session, loading } = useAuth();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -39,30 +34,8 @@ function Navigation() {
   }
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#1a1a2e' },
-      }}
-    >
-      {!session ? (
-        <>
-          <Stack.Screen name="SignIn" component={SignInScreen} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} />
-        </>
-      ) : needsProfileSetup() ? (
-        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-      ) : (
-        <>
-          <Stack.Screen name="Standings" component={StandingsScreen} />
-          <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
-          <Stack.Screen name="MyChallenges" component={MyChallengesScreen} />
-          <Stack.Screen name="MyMatches" component={MyMatchesScreen} />
-          <Stack.Screen name="MatchDetail" component={MatchDetailScreen} />
-          <Stack.Screen name="Treasury" component={TreasuryScreen} />
-          <Stack.Screen name="AdminTreasury" component={AdminTreasuryScreen} />
-        </>
-      )}
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Test" component={TestScreen} />
     </Stack.Navigator>
   );
 }
