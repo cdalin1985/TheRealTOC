@@ -150,10 +150,10 @@ export function PaymentButton({
                   {processing === method ? (
                     <ActivityIndicator size="small" color={color} />
                   ) : (
-                    <React.Fragment>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                       <Text style={styles.methodIcon}>{icon}</Text>
                       <Text style={[styles.methodLabel, { color }]}>{label}</Text>
-                    </React.Fragment>
+                    </View>
                   )}
                 </TouchableOpacity>
               ))}
