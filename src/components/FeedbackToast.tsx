@@ -51,8 +51,19 @@ export function FeedbackToast({
   duration = 3000,
   style,
 }: FeedbackToastProps) {
-  const translateY = useRef(new Animated.Value(-100)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  // Lazy initialization for React 19 compatibility
+  const translateYRef = useRef<Animated.Value | null>(null);
+  const opacityRef = useRef<Animated.Value | null>(null);
+  
+  if (!translateYRef.current) {
+    translateYRef.current = new Animated.Value(-100);
+  }
+  if (!opacityRef.current) {
+    opacityRef.current = new Animated.Value(0);
+  }
+  
+  const translateY = translateYRef.current;
+  const opacity = opacityRef.current;
   const scale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
