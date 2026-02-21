@@ -8,7 +8,6 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#1a1a2e",
     "primaryColor": "#e94560",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -21,55 +20,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.therealtoc.app",
-      "buildNumber": "1.0.0.1",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [],
-        "UIViewControllerBasedStatusBarAppearance": true
-      },
-      "config": {
-        "usesNonExemptEncryption": false
-      },
-      "icon": {
-        "dark": "./assets/ios-icon-dark.png",
-        "light": "./assets/icon.png",
-        "tinted": "./assets/ios-icon-tinted.png"
-      }
+      "buildNumber": "1.0.0.1"
     },
     "android": {
       "package": "com.therealtoc.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundImage": "./assets/adaptive-icon-bg.png",
-        "monochromeImage": "./assets/adaptive-icon-mono.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.INTERNET"
-      ],
-      "splash": {
-        "image": "./assets/splash.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#1a1a2e"
+        "backgroundImage": "./assets/adaptive-icon-bg.png"
       }
-    },
-    "plugins": [],
-    "extra": {
-      "eas": {
-        "projectId": "therealtoc-project-id"
-      }
-    },
-    "owner": "therealtoc",
-    "updates": {
-      "url": "https://u.expo.dev/therealtoc-project-id",
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
     },
     "jsEngine": "hermes"
   }
