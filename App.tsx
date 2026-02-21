@@ -1,19 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SignInScreen } from './src/screens';
 import { useAuth } from './src/hooks/useAuth';
 
 const Stack = createNativeStackNavigator();
-
-function TestScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Test Screen - Auth Works!</Text>
-    </View>
-  );
-}
 
 function Navigation() {
   const { session, loading } = useAuth();
@@ -35,7 +28,7 @@ function Navigation() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Test" component={TestScreen} />
+      <Stack.Screen name="SignIn" component={SignInScreen} />
     </Stack.Navigator>
   );
 }
