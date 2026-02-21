@@ -30,6 +30,7 @@
         "backgroundImage": "./assets/adaptive-icon-bg.png"
       }
     },
-    "jsEngine": "hermes"
+    "jsEngine": "hermes",
+    "newArchEnabled": true
   }
 }
